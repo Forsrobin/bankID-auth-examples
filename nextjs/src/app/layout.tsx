@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Roboto_Flex } from 'next/font/google'
 import './globals.css'
+import { QueryProvider } from '@/components/QueryProvider'
 
 const roboto = Roboto_Flex({
   variable: '--font-roboto',
@@ -19,7 +20,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang='en'>
-      <body className={`${roboto.className} antialiased`}>{children}</body>
+      <body className={`${roboto.className} antialiased`}>
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   )
 }
