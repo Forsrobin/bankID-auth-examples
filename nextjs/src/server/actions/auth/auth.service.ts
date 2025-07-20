@@ -16,7 +16,7 @@ const client = new BankIdClientV6({
   pfx: 'src/certs/FPTestcert5_20240610.p12',
 })
 
-interface PoolAuthResponse {
+export type PoolAuthResponse = {
   status: 'qrCode' | 'newOrderRef' | 'complete' | 'failed'
   qrCode: string | null
   orderRef: string | null
@@ -59,6 +59,7 @@ const authService = {
     }
 
     if (!qrCacheEntry) {
+      console.log('No QR code found in cache for orderRef:', orderRef)
       return invalid
     }
 
@@ -104,7 +105,9 @@ const authService = {
 
     const newQrCode = await QrGenerator.latestQrFromCache(orderRef)
 
-    if (!newQrCode) return invalid
+    if (!newQrCode) {
+      return invalid
+    }
 
     return {
       qrCode: newQrCode,

@@ -3,7 +3,9 @@ import { BankIDModal } from '@/components/BankIdModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { AuthState } from '@/lib/types/auth'
+import type { PoolAuthResponse } from '@/server/actions/auth/auth.service'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { setCookie } from 'cookies-next'
 import { Building2, Clock, Shield, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -24,7 +26,8 @@ export default function Auth() {
     queryKey: ['pollAuth', orderRef],
     queryFn: async () => {
       const res = await fetch(`/api/auth/poll?orderRef=${orderRef}`)
-      return await res.json()
+      const data = (await res.json()) as PoolAuthResponse
+      return data
     },
     enabled: orderRef !== null,
     refetchInterval: 1000,
@@ -39,7 +42,7 @@ export default function Auth() {
       return await res.json()
     },
     onSuccess: (data) => {
-      setAuthState('qr-code')
+      setAuthState('loading')
       setAuthCountdown(data.authCountdown)
       setOrderRef(data.orderRef)
     },
@@ -97,6 +100,10 @@ export default function Auth() {
         }
         break
       case 'complete':
+        setCookie('accessToken', pollAuthData.token, {
+          maxAge: 60 * 60 * 24 * 30,
+          expires: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000),
+        })
         setAuthState('success')
         clearStates()
         setTimeout(() => {
@@ -108,7 +115,7 @@ export default function Auth() {
         clearStates()
         break
     }
-  }, [pollAuthData, authState, router])
+  }, [authState, pollAuthData])
 
   const clearStates = () => {
     setQrCode(null)
@@ -162,54 +169,13 @@ export default function Auth() {
     <div className='min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-blue-50'>
       <div className='container flex-1 mx-auto px-4 py-12 flex items-center justify-center pb-32'>
         <div className='mx-auto max-w-6xl'>
-          <div className='grid gap-12 lg:grid-cols-2 lg:gap-16'>
-            <div className='flex flex-col justify-center space-y-8'>
-              <div className='space-y-4'>
-                <h2 className='text-4xl font-bold tracking-tight text-gray-900'>
-                  Välkommen till
-                  <span className='block text-blue-600'>Förvaringsportalen</span>
-                </h2>
-                <p className='text-lg text-gray-600'>Din säkra plattform för förvaring och hantering av viktiga dokument och tillgångar.</p>
-              </div>
-
-              <div className='grid gap-4 sm:grid-cols-2'>
-                <div className='flex items-start space-x-3'>
-                  <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-green-100'>
-                    <Shield className='h-4 w-4 text-green-600' />
-                  </div>
-                  <div>
-                    <h3 className='font-semibold text-gray-900'>Säker autentisering</h3>
-                    <p className='text-sm text-gray-600'>BankID-integration för maximal säkerhet</p>
-                  </div>
-                </div>
-                <div className='flex items-start space-x-3'>
-                  <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100'>
-                    <Users className='h-4 w-4 text-blue-600' />
-                  </div>
-                  <div>
-                    <h3 className='font-semibold text-gray-900'>Användarcentrerat</h3>
-                    <p className='text-sm text-gray-600'>Enkel och intuitiv användarupplevelse</p>
-                  </div>
-                </div>
-                <div className='flex items-start space-x-3'>
-                  <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100'>
-                    <Clock className='h-4 w-4 text-purple-600' />
-                  </div>
-                  <div>
-                    <h3 className='font-semibold text-gray-900'>Tillgänglig 24/7</h3>
-                    <p className='text-sm text-gray-600'>Åtkomst till dina tillgångar när som helst</p>
-                  </div>
-                </div>
-                <div className='flex items-start space-x-3'>
-                  <div className='flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100'>
-                    <Building2 className='h-4 w-4 text-orange-600' />
-                  </div>
-                  <div>
-                    <h3 className='font-semibold text-gray-900'>Professionell service</h3>
-                    <p className='text-sm text-gray-600'>Experthjälp och support</p>
-                  </div>
-                </div>
-              </div>
+          <div className='grid gap-12 lg:grid-cols-1 lg:gap-16'>
+            <div className='space-y-4'>
+              <h2 className='text-4xl font-bold justify-center flex items-center gap-2 tracking-tight text-gray-900'>
+                <span className='block text-blue-600'>BankID</span>
+                inloggning
+              </h2>
+              <p className='text-lg text-gray-600'>Simpelt demo av BankID-inloggning och autentisering</p>
             </div>
 
             <div className='flex items-center justify-center'>
