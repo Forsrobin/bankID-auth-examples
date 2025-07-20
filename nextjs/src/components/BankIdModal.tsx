@@ -152,13 +152,13 @@ export const BankIDModal = ({ isOpen, cancelPolling, qrCode, authState, setAuthS
             </DialogTitle>
           </DialogHeader>
 
-          <AnimatePresence>
+          <AnimatePresence mode='wait'>
             <motion.div
               key={authState}
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }} // Use layout transition for smooth height changes
               layout
               className='space-y-6 overflow-hidden'
             >

@@ -7,10 +7,13 @@ import { decodeJwt, jwtVerify, SignJWT } from 'jose'
 const AUTH_TIMEOUT = 300 // seconds, 5 minutes
 
 const client = new BankIdClientV6({
-  production: env.NODE_ENV === 'production',
+  production: false,
   qrOptions: { orderTTL: AUTH_TIMEOUT },
   refreshInterval: 1000,
   qrEnabled: true,
+  passphrase: 'qwerty123', // This should be replaced with the actual passphrase
+  ca: 'src/certs/test.ca',
+  pfx: 'src/certs/FPTestcert5_20240610.p12',
 })
 
 interface PoolAuthResponse {
@@ -26,17 +29,22 @@ export type DecodedPayload = {
 
 const authService = {
   initAuth: async () => {
-    const { orderRef, qr } = await client.authenticate({
-      endUserIp: '127.0.0.1',
-    })
+    try {
+      const { orderRef, qr } = await client.authenticate({
+        endUserIp: '127.0.0.1',
+      })
 
-    if (!qr) {
-      throw new Error('QR code generator not found')
-    }
+      if (!qr) {
+        throw new Error('QR code generator not found')
+      }
 
-    return {
-      orderRef,
-      authCountdown: AUTH_TIMEOUT,
+      return {
+        orderRef,
+        authCountdown: AUTH_TIMEOUT,
+      }
+    } catch (error) {
+      console.error('Error initializing auth:', error)
+      throw new Error('Failed to initialize auth')
     }
   },
 

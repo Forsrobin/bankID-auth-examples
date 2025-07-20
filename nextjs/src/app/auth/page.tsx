@@ -3,7 +3,6 @@ import { BankIDModal } from '@/components/BankIdModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { AuthState } from '@/lib/types/auth'
-import authService from '@/server/actions/auth/auth.service'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Building2, Clock, Shield, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -23,7 +22,10 @@ export default function Auth() {
   // Equivalent to trpc.auth.pollAuth.useQuery
   const { data: pollAuthData } = useQuery({
     queryKey: ['pollAuth', orderRef],
-    queryFn: async () => authService.pollAuth(orderRef as string),
+    queryFn: async () => {
+      const res = await fetch(`/api/auth/poll?orderRef=${orderRef}`)
+      return await res.json()
+    },
     enabled: orderRef !== null,
     refetchInterval: 1000,
     refetchOnWindowFocus: false,
@@ -31,9 +33,13 @@ export default function Auth() {
 
   // Equivalent to trpc.auth.login.useMutation
   const authMutation = useMutation({
-    mutationFn: authService.initAuth,
-    onSuccess: async (data) => {
-      setAuthState('loading')
+    mutationFn: async () => {
+      const res = await fetch('/api/auth/init')
+      if (!res.ok) throw new Error('Failed to init auth')
+      return await res.json()
+    },
+    onSuccess: (data) => {
+      setAuthState('qr-code')
       setAuthCountdown(data.authCountdown)
       setOrderRef(data.orderRef)
     },
