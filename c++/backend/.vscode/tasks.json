@@ -2,18 +2,74 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run Application (Static)",
+      "label": "Configure Static Library (Debug)",
       "type": "shell",
-      "command": "build/vs2022-deb/bankid/Debug/bankid.exe",
-      "group": "test",
-      "dependsOn": "Build Static Library (Debug)"
+      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
+      "args": [
+        "--preset",
+        "vs2022-deb"
+      ],
+      "group": "build",
+      "problemMatcher": []
     },
     {
-      "label": "Run Application (Shared)",
+      "label": "Build Static Library (Debug)",
       "type": "shell",
-      "command": "build/vs2022-deb-shared/bankid/Debug/bankid.exe",
+      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
+      "args": [
+        "--build",
+        "build/vs2022-deb",
+        "--config",
+        "Debug"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$msCompile"
+      ],
+      "dependsOn": "Configure Static Library (Debug)"
+    },
+    {
+      "label": "Configure Shared Library (Debug)",
+      "type": "shell",
+      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
+      "args": [
+        "--preset",
+        "vs2022-deb-shared"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Shared Library (Debug)",
+      "type": "shell",
+      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
+      "args": [
+        "--build",
+        "build/vs2022-deb-shared",
+        "--config",
+        "Debug"
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$msCompile"
+      ],
+      "dependsOn": "Configure Shared Library (Debug)"
+    },
+    {
+      "label": "Run Server (Static)",
+      "type": "shell",
+      "command": "build/vs2022-deb/server/Debug/bankid_server.exe",
       "group": "test",
-      "dependsOn": "Build Shared Library (Debug)"
+      "dependsOn": "Build Static Library (Debug)",
+      "isBackground": true
+    },
+    {
+      "label": "Run Server (Shared)",
+      "type": "shell",
+      "command": "build/vs2022-deb-shared/server/Debug/bankid_server.exe",
+      "group": "test",
+      "dependsOn": "Build Shared Library (Debug)",
+      "isBackground": true
     }
   ]
 }

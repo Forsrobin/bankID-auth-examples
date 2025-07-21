@@ -21,4 +21,5 @@ endif()
 option(BUILD_SHARED_LIBS "Build shared library" Off)
 
 add_subdirectory(bankid)
+add_subdirectory(server)
 

@@ -1,10 +1,6 @@
-# BankID Library sources (exclude main.cpp)
+# BankID Library sources
 set(BANKID_LIB_SOURCES
   ${CMAKE_CURRENT_LIST_DIR}/bankid.cpp)
-
-# Application sources (main.cpp)
-set(BANKID_APP_SOURCES
-  ${CMAKE_CURRENT_LIST_DIR}/main.cpp)
 
 # Include directories
 set(BANKID_INCLUDE_DIR
@@ -36,17 +32,6 @@ target_include_directories(bankid_lib PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-# Create the executable
-add_executable(bankid_app ${BANKID_APP_SOURCES})
-
-# Link the executable with the library
-target_link_libraries(bankid_app PRIVATE bankid_lib)
-
-# Set executable properties
-set_target_properties(bankid_app PROPERTIES
-    OUTPUT_NAME "bankid"
-)
-
 # Installation rules
 include(GNUInstallDirs)
 
@@ -55,11 +40,6 @@ install(TARGETS bankid_lib
     EXPORT BankIDTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-# Install the executable
-install(TARGETS bankid_app
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
