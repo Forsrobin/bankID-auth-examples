@@ -3,12 +3,13 @@ import { BankIDModal } from '@/components/BankIdModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { AuthState } from '@/lib/types/auth'
-import type { PoolAuthResponse } from '@/server/actions/auth/auth.service'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { setCookie } from 'cookies-next'
-import { Building2, Clock, Shield, Users } from 'lucide-react'
+import { Shield } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import type { PoolAuthResponse } from '../api/auth/poll/route'
+import type { InitAuthResponse } from '../api/auth/init/route'
 
 export default function Auth() {
   const [showBankIDModal, setShowBankIDModal] = useState(false)
@@ -26,6 +27,7 @@ export default function Auth() {
     queryKey: ['pollAuth', orderRef],
     queryFn: async () => {
       const res = await fetch(`/api/auth/poll?orderRef=${orderRef}`)
+      if (!res.ok) throw new Error('Failed to poll auth status')
       const data = (await res.json()) as PoolAuthResponse
       return data
     },
@@ -39,16 +41,13 @@ export default function Auth() {
     mutationFn: async () => {
       const res = await fetch('/api/auth/init')
       if (!res.ok) throw new Error('Failed to init auth')
-      return await res.json()
+      const data = (await res.json()) as InitAuthResponse
+      return data
     },
     onSuccess: (data) => {
-      setAuthState('loading')
-      setAuthCountdown(data.authCountdown)
+      setAuthState('qr-code')
       setOrderRef(data.orderRef)
-    },
-    onError: () => {
-      setAuthState('failed')
-      clearStates()
+      setAuthCountdown(data.authCountdown)
     },
   })
 
@@ -84,22 +83,20 @@ export default function Auth() {
 
     switch (pollAuthData.status) {
       case 'newOrderRef':
-        if (pollAuthData.orderRef) {
-          setOrderRef(pollAuthData.orderRef)
-        }
-        if (pollAuthData.qrCode) {
-          setQrCode(pollAuthData.qrCode)
-        }
+        if (pollAuthData.orderRef) setOrderRef(pollAuthData.orderRef)
+        if (pollAuthData.qrCode) setQrCode(pollAuthData.qrCode)
+
         break
       case 'qrCode':
-        if (authState !== 'qr-code') {
-          setAuthState('qr-code')
-        }
-        if (pollAuthData.qrCode) {
-          setQrCode(pollAuthData.qrCode)
-        }
+        if (authState !== 'qr-code') setAuthState('qr-code')
+
+        if (pollAuthData.qrCode) setQrCode(pollAuthData.qrCode)
+
         break
       case 'complete':
+        // Create a access token and set it in cookies
+        // WARNING: This is a simplified example, in production you should handle this securely
+        // using refresh tokens or similar mechanisms
         setCookie('accessToken', pollAuthData.token, {
           maxAge: 60 * 60 * 24 * 30,
           expires: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000),
@@ -115,7 +112,7 @@ export default function Auth() {
         clearStates()
         break
     }
-  }, [authState, pollAuthData])
+  }, [authState, pollAuthData, router])
 
   const clearStates = () => {
     setQrCode(null)
@@ -172,7 +169,7 @@ export default function Auth() {
           <div className='grid gap-12 lg:grid-cols-1 lg:gap-16'>
             <div className='space-y-4'>
               <h2 className='text-4xl font-bold justify-center flex items-center gap-2 tracking-tight text-gray-900'>
-                <span className='block text-blue-600'>BankID</span>
+                <span className='block text-primary'>BankID</span>
                 inloggning
               </h2>
               <p className='text-lg text-gray-600'>Simpelt demo av BankID-inloggning och autentisering</p>
@@ -186,7 +183,7 @@ export default function Auth() {
                 </CardHeader>
                 <CardContent className='space-y-6'>
                   <div className='space-y-4'>
-                    <Button isLoading={showBankIDModal} onClick={handleBankIDLogin} className='w-full bg-blue-600 hover:bg-blue-700' size='lg'>
+                    <Button isLoading={showBankIDModal} onClick={handleBankIDLogin} className='w-full bg-primary hover:bg-primary-/90' size='lg'>
                       <Shield className='mr-2 h-5 w-5' />
                       Logga in med BankID
                     </Button>
@@ -202,10 +199,10 @@ export default function Auth() {
 
                     <div className='rounded-lg bg-blue-50 p-4'>
                       <div className='flex items-start space-x-3'>
-                        <Shield className='h-5 w-5 text-blue-600 mt-0.5' />
+                        <Shield className='h-5 w-5 text-primary mt-0.5' />
                         <div className='text-sm'>
-                          <p className='font-medium text-blue-900'>Säker och trygg</p>
-                          <p className='text-blue-700'>Vi använder BankID för att säkerställa din identitet och skydda dina uppgifter.</p>
+                          <p className='font-medium text-primary'>Säker och trygg</p>
+                          <p className='text-primary'>Vi använder BankID för att säkerställa din identitet och skydda dina uppgifter.</p>
                         </div>
                       </div>
                     </div>

@@ -1,4 +1,4 @@
-import type { InputTypesFromSchemas } from '@/server/types'
+import type { InputTypesFromSchemas } from '@/lib/types/service'
 import z from 'zod'
 
 const initAuth = z.object({})

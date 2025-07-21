@@ -1,42 +1,26 @@
-import { ACCESS_TOKEN_EXP } from '../../../middleware'
+import type { InitAuthResponse } from '@/app/api/auth/init/route'
+import type { PoolAuthResponse } from '@/app/api/auth/poll/route'
+import { bankIdClient } from '@/server/lib/bankid'
 import env from '@/server/env'
-import type { ServiceAsyncReturnType } from '@/server/types'
-import { BankIdClientV6, QrGenerator } from 'bankid'
+import type { ServiceAsyncReturnType } from '@/lib/types/service'
+import { QrGenerator } from 'bankid'
 import { decodeJwt, jwtVerify, SignJWT } from 'jose'
+import { ACCESS_TOKEN_EXP } from '../../../middleware'
 
 const AUTH_TIMEOUT = 300 // seconds, 5 minutes
-
-const client = new BankIdClientV6({
-  production: false,
-  qrOptions: { orderTTL: AUTH_TIMEOUT },
-  refreshInterval: 1000,
-  qrEnabled: true,
-  passphrase: 'qwerty123', // This should be replaced with the actual passphrase
-  ca: 'src/certs/test.ca',
-  pfx: 'src/certs/FPTestcert5_20240610.p12',
-})
-
-export type PoolAuthResponse = {
-  status: 'qrCode' | 'newOrderRef' | 'complete' | 'failed'
-  qrCode: string | null
-  orderRef: string | null
-  token: string | null
-}
 
 export type DecodedPayload = {
   personalNumber: string
 }
 
 const authService = {
-  initAuth: async () => {
+  initAuth: async (): Promise<InitAuthResponse> => {
     try {
-      const { orderRef, qr } = await client.authenticate({
+      const { orderRef, qr } = await bankIdClient.authenticate({
         endUserIp: '127.0.0.1',
       })
 
-      if (!qr) {
-        throw new Error('QR code generator not found')
-      }
+      if (!qr) throw new Error('QR code generator not found')
 
       return {
         orderRef,
@@ -63,7 +47,7 @@ const authService = {
       return invalid
     }
 
-    const resp = await client.collect({ orderRef })
+    const resp = await bankIdClient.collect({ orderRef })
 
     if (resp.status === 'complete' && resp.completionData?.user) {
       try {
@@ -81,7 +65,7 @@ const authService = {
       }
     } else if (resp.status === 'failed') {
       // Here we want to create a new order becuase bankID only have a 30 second validity time
-      const { orderRef: newOrderRef, qr } = await client.authenticate({
+      const { orderRef: newOrderRef, qr } = await bankIdClient.authenticate({
         endUserIp: '127.0.0.1',
       })
 

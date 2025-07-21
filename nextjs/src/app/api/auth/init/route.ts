@@ -1,4 +1,5 @@
 import authService from '@/server/actions/auth/auth.service'
+import type { QrGenerator, QrGeneratorCache } from 'bankid'
 import { NextResponse } from 'next/server'
 
 export type InitAuthResponse = {
