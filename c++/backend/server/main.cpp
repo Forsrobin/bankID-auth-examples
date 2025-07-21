@@ -3,6 +3,13 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <filesystem>
+
+// Helper function to check if file exists
+bool file_exists(const std::string &path)
+{
+  return std::filesystem::exists(path);
+}
 
 class BankIDServer
 {
@@ -101,24 +108,46 @@ public:
 
 int main()
 {
-  crow::SimpleApp app;
-
-  // Create BankID configuration for your project
-  // Example 1: Simple authentication
-  BankID::BankIDConfig simple_config(
-      "172.0.0.1",                                // endUserIp
-      "https://yourapp.example.com/auth/callback" // returnUrl
+  // SSL Configuration for BankID
+  // Test environment (default)
+  BankID::SSLConfig test_ssl_config(
+      BankID::Environment::TEST,
+      "certs/FPTestcert5_20240610.p12", // P12 certificate file
+      "qwerty123"                       // P12 passphrase
   );
 
-  // Example 2: Enhanced authentication with user visible data
+  // Verify certificate files exist
+  if (!file_exists(test_ssl_config.p12_file_path))
+  {
+    std::cerr << "Warning: P12 certificate file not found: " << test_ssl_config.p12_file_path << std::endl;
+    std::cerr << "Please ensure the BankID certificate is placed in the certs/ directory" << std::endl;
+    return 0;
+  }
+
+  if (!file_exists(test_ssl_config.ca_file_path))
+  {
+    std::cerr << "Warning: CA certificate file not found: " << test_ssl_config.ca_file_path << std::endl;
+    std::cerr << "Please ensure the CA certificate is placed in the certs/ directory" << std::endl;
+    return 0;
+  }
+
+  // Create BankID configuration for your project
+  BankID::BankIDConfig simple_config(
+      "172.0.0.1",                                 // endUserIp
+      "https://yourapp.example.com/auth/callback", // returnUrl
+      test_ssl_config                              // SSL configuration
+  );
+
+  // Example 2: Enhanced authentication with user visible data and SSL
   // BankID::BankIDConfig enhanced_config(
   //   "192.168.1.100", // endUserIp
   //   "https://yourapp.example.com/auth/callback", // returnUrl
   //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==", // base64 encoded user visible data
-  //   true // returnRisk
+  //   true, // returnRisk
+  //   test_ssl_config // SSL configuration
   // );
 
-  // Example 3: App-based authentication
+  // Example 3: App-based authentication with SSL
   // BankID::AppConfig app_config{
   //   "com.yourcompany.yourapp", // appIdentifier
   //   "iOS 17.1", // deviceOS
@@ -130,10 +159,11 @@ int main()
   //   "https://yourapp.example.com/auth/callback",
   //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==",
   //   app_config,
-  //   true
+  //   true,
+  //   test_ssl_config
   // );
 
-  // Example 4: Web-based authentication
+  // Example 4: Web-based authentication with SSL
   // BankID::WebConfig web_config{
   //   "yourapp.example.com", // referringDomain
   //   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", // userAgent
@@ -144,11 +174,12 @@ int main()
   //   "https://yourapp.example.com/auth/callback",
   //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==",
   //   web_config,
-  //   true
+  //   true,
+  //   test_ssl_config
   // );
 
-  // Create BankID server instance with the chosen configuration
   BankIDServer bankid_server(simple_config);
+  crow::SimpleApp app;
 
   // GET /init endpoint
   CROW_ROUTE(app, "/init")
@@ -164,11 +195,48 @@ int main()
         std::cout << "GET /poll - Checking authentication status" << std::endl;
         return bankid_server.poll_authentication(); });
 
-  std::cout << "Starting BankID REST API server on port 8080..." << std::endl;
-  std::cout << "Available endpoints:" << std::endl;
-  std::cout << "  GET /init - Start authentication" << std::endl;
-  std::cout << "  GET /poll - Check authentication status" << std::endl;
-  app.port(8080).multithreaded().run();
+  // Configure SSL if certificates are available
+  const auto &ssl_config = simple_config.getSSLConfig();
+
+  // Check for PEM certificates first (preferred for Crow)
+  if (file_exists(ssl_config.pem_combined_path) && file_exists(ssl_config.p12_file_path))
+  {
+    std::cout << "PEM combined certificate found, setting up HTTPS server..." << std::endl;
+    std::cout << "Using SSL configuration:" << std::endl;
+    std::cout << "  Environment: " << (ssl_config.environment == BankID::Environment::TEST ? "TEST" : "PRODUCTION") << std::endl;
+    std::cout << "  PEM Combined Certificate: " << ssl_config.pem_combined_path << std::endl;
+    std::cout << "  CA Certificate: " << ssl_config.ca_file_path << std::endl;
+
+    try
+    {
+      std::cout << "Starting BankID REST API server on port 8443 (HTTPS)..." << std::endl;
+      std::cout << "Available endpoints:" << std::endl;
+      std::cout << "  GET https://localhost:8443/init - Start authentication" << std::endl;
+      std::cout << "  GET https://localhost:8443/poll - Check authentication status" << std::endl;
+
+      app.ssl_file(ssl_config.pem_combined_path)
+          .port(8443)
+          .multithreaded()
+          .run();
+    }
+    catch (const std::exception &e)
+    {
+      std::cerr << "SSL setup failed: " << e.what() << std::endl;
+      std::cerr << "Falling back to HTTP..." << std::endl;
+      std::cout << "Starting BankID REST API server on port 8080 (HTTP)..." << std::endl;
+      return 0;
+    }
+  }
+  else
+  {
+    std::cout << "No SSL certificates found, starting HTTP server..." << std::endl;
+    std::cout << "To enable HTTPS, place your BankID certificates in the certs/ directory:" << std::endl;
+    std::cout << "  - " << ssl_config.p12_file_path << " (P12 certificate)" << std::endl;
+    std::cout << "  - " << ssl_config.ca_file_path << " (CA certificate)" << std::endl;
+    std::cout << "Then run the certificate conversion script." << std::endl;
+    std::cout << std::endl;
+    return 0;
+  }
 
   return 0;
 }
