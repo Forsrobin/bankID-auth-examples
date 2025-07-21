@@ -1,13 +1,13 @@
-'use cache'
-
 import { BankIdClientV6 } from 'bankid'
-import env from '../env'
+import env from '../server/env'
 
-const AUTH_TIMEOUT = 300
+export const AUTH_TIMEOUT = 300
 
 export const bankIdClient = new BankIdClientV6({
   production: env.NODE_ENV === 'production',
-  qrOptions: { orderTTL: AUTH_TIMEOUT },
+  qrOptions: {
+    orderTTL: AUTH_TIMEOUT,
+  },
   refreshInterval: 1000,
   qrEnabled: true,
   passphrase: 'qwerty123',

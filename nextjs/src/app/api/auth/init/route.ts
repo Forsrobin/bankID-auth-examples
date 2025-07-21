@@ -1,6 +1,7 @@
 import authService from '@/server/actions/auth/auth.service'
-import type { QrGenerator, QrGeneratorCache } from 'bankid'
 import { NextResponse } from 'next/server'
+
+export const runtime = 'nodejs'
 
 export type InitAuthResponse = {
   orderRef: string

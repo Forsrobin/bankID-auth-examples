@@ -1,13 +1,11 @@
 import type { InitAuthResponse } from '@/app/api/auth/init/route'
 import type { PoolAuthResponse } from '@/app/api/auth/poll/route'
-import { bankIdClient } from '@/server/lib/bankid'
+import { AUTH_TIMEOUT, bankIdClient } from '@/lib/bankid'
 import env from '@/server/env'
 import type { ServiceAsyncReturnType } from '@/lib/types/service'
 import { QrGenerator } from 'bankid'
 import { decodeJwt, jwtVerify, SignJWT } from 'jose'
 import { ACCESS_TOKEN_EXP } from '../../../middleware'
-
-const AUTH_TIMEOUT = 300 // seconds, 5 minutes
 
 export type DecodedPayload = {
   personalNumber: string

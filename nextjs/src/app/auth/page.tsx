@@ -11,6 +11,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { PoolAuthResponse } from '../api/auth/poll/route'
 import type { InitAuthResponse } from '../api/auth/init/route'
 import { useCountdown } from '@/hooks/useTimeout'
+import BankIdLogo from '@/assets/images/bankid.png'
+import Image from 'next/image'
 
 export default function Auth() {
   const [showBankIDModal, setShowBankIDModal] = useState(false)
@@ -29,7 +31,7 @@ export default function Auth() {
 
   // Equivalent to trpc.auth.pollAuth.useQuery
   const { data: pollAuthData } = useQuery({
-    queryKey: ['pollAuth', orderRef],
+    queryKey: ['pollAuth'],
     queryFn: async () => {
       const res = await fetch(`/api/auth/poll?orderRef=${orderRef}`)
       if (!res.ok) throw new Error('Failed to poll auth status')
@@ -125,27 +127,30 @@ export default function Auth() {
   return (
     <div className='min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-blue-50'>
       <div className='container flex-1 mx-auto px-4 py-12 flex items-center justify-center pb-32'>
-        <div className='mx-auto max-w-6xl'>
+        <div className='mx-auto max-w-6xl space-y-6'>
+          <div className={`h-28 w-full relative`}>
+            <Image src={BankIdLogo} alt='BankID Logo' className='object-contain' fill />
+          </div>
           <div className='grid gap-12 lg:grid-cols-1 lg:gap-16'>
             <div className='space-y-4'>
               <h2 className='text-4xl font-bold justify-center flex items-center gap-2 tracking-tight text-gray-900'>
                 <span className='block text-primary'>BankID</span>
-                inloggning
+                Login
               </h2>
-              <p className='text-lg text-gray-600'>Simpelt demo av BankID-inloggning och autentisering</p>
+              <p className='text-lg text-gray-600'>Simple demo of BankID login and authentication</p>
             </div>
 
             <div className='flex items-center justify-center'>
               <Card className='w-full max-w-md shadow-xl'>
                 <CardHeader className='space-y-1 text-center'>
-                  <CardTitle className='text-2xl font-bold'>Logga in</CardTitle>
-                  <CardDescription>Använd ditt BankID för att komma åt din förvaringsprofil</CardDescription>
+                  <CardTitle className='text-2xl font-bold'>Login</CardTitle>
+                  <CardDescription>Use your BankID to log in</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-6'>
                   <div className='space-y-4'>
                     <Button isLoading={showBankIDModal} onClick={handleBankIDLogin} className='w-full bg-primary hover:bg-primary-/90' size='lg'>
                       <Shield className='mr-2 h-5 w-5' />
-                      Logga in med BankID
+                      Login with BankID
                     </Button>
 
                     <div className='relative'>
@@ -153,7 +158,7 @@ export default function Auth() {
                         <span className='w-full border-t' />
                       </div>
                       <div className='relative flex justify-center text-xs uppercase'>
-                        <span className='bg-white px-2 text-gray-500'>Säker inloggning</span>
+                        <span className='bg-white px-2 text-gray-500'>BankID</span>
                       </div>
                     </div>
 
@@ -161,8 +166,8 @@ export default function Auth() {
                       <div className='flex items-start space-x-3'>
                         <Shield className='h-5 w-5 text-primary mt-0.5' />
                         <div className='text-sm'>
-                          <p className='font-medium text-primary'>Säker och trygg</p>
-                          <p className='text-primary'>Vi använder BankID för att säkerställa din identitet och skydda dina uppgifter.</p>
+                          <p className='font-medium text-primary'>Test login</p>
+                          <p className='text-primary'>This is a demo that simulates BankID login using their public test API and certificates.</p>
                         </div>
                       </div>
                     </div>

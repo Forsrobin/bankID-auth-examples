@@ -1,6 +1,8 @@
 import authService from '@/server/actions/auth/auth.service'
 import { NextResponse } from 'next/server'
 
+export const runtime = 'nodejs'
+
 export type PoolAuthResponse = {
   status: 'qrCode' | 'newOrderRef' | 'complete' | 'failed'
   qrCode: string | null
