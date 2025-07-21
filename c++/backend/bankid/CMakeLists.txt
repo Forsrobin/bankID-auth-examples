@@ -1,0 +1,98 @@
+# BankID Library sources (exclude main.cpp)
+set(BANKID_LIB_SOURCES
+  ${CMAKE_CURRENT_LIST_DIR}/bankid.cpp)
+
+# Application sources (main.cpp)
+set(BANKID_APP_SOURCES
+  ${CMAKE_CURRENT_LIST_DIR}/main.cpp)
+
+# Include directories
+set(BANKID_INCLUDE_DIR
+  ${CMAKE_CURRENT_LIST_DIR}/includes)
+
+# Create the BankID library (shared/static based on BUILD_SHARED_LIBS)
+add_library(bankid_lib ${BANKID_LIB_SOURCES})
+
+# Set library properties
+set_target_properties(bankid_lib PROPERTIES
+    OUTPUT_NAME "bankid"
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+)
+
+# Set compile definitions for Windows DLL export/import
+if(WIN32)
+    if(BUILD_SHARED_LIBS)
+        target_compile_definitions(bankid_lib PRIVATE BANKID_EXPORTS)
+    else()
+        # For static libraries, we don't need the export/import macros
+        target_compile_definitions(bankid_lib PUBLIC BANKID_STATIC)
+    endif()
+endif()
+
+# Include directories for the library
+target_include_directories(bankid_lib PUBLIC 
+    $<BUILD_INTERFACE:${BANKID_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:include>
+)
+
+# Create the executable
+add_executable(bankid_app ${BANKID_APP_SOURCES})
+
+# Link the executable with the library
+target_link_libraries(bankid_app PRIVATE bankid_lib)
+
+# Set executable properties
+set_target_properties(bankid_app PROPERTIES
+    OUTPUT_NAME "bankid"
+)
+
+# Installation rules
+include(GNUInstallDirs)
+
+# Install the library
+install(TARGETS bankid_lib
+    EXPORT BankIDTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Install the executable
+install(TARGETS bankid_app
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# Install headers
+install(DIRECTORY ${BANKID_INCLUDE_DIR}/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+)
+
+# Export targets for other projects to use
+install(EXPORT BankIDTargets
+    FILE BankIDTargets.cmake
+    NAMESPACE BankID::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/BankID
+)
+
+# Create and install config file
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/BankIDConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/BankIDConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/BankID
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/BankIDConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/BankIDConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/BankIDConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/BankID
+)
