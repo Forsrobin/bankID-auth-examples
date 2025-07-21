@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import type { PoolAuthResponse } from '../api/auth/poll/route'
 import type { InitAuthResponse } from '../api/auth/init/route'
+import { useCountdown } from '@/hooks/useTimeout'
 
 export default function Auth() {
   const [showBankIDModal, setShowBankIDModal] = useState(false)
@@ -19,7 +20,11 @@ export default function Auth() {
   const [orderRef, setOrderRef] = useState<string | null>(null)
 
   // Track the countdown timer
-  const countdownRef = useRef<NodeJS.Timeout | null>(null)
+  const countdown = useCountdown(authCountdown, () => {
+    setAuthState('failed')
+    resetAuthState()
+  })
+
   const router = useRouter()
 
   // Equivalent to trpc.auth.pollAuth.useQuery
@@ -50,33 +55,6 @@ export default function Auth() {
       setAuthCountdown(data.authCountdown)
     },
   })
-
-  // Handle countdown timer
-  useEffect(() => {
-    if (authState === 'qr-code' && authCountdown > 0) {
-      countdownRef.current = setInterval(() => {
-        setAuthCountdown((prev) => {
-          if (prev <= 1) {
-            setAuthState('failed')
-            resetAuthState()
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-    } else {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current)
-        countdownRef.current = null
-      }
-    }
-
-    return () => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current)
-      }
-    }
-  }, [authState, authCountdown])
 
   useEffect(() => {
     if (!pollAuthData) return
@@ -118,10 +96,6 @@ export default function Auth() {
     setQrCode(null)
     setOrderRef(null)
     setAuthCountdown(0)
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current)
-      countdownRef.current = null
-    }
   }
 
   const resetAuthState = () => {
@@ -129,10 +103,6 @@ export default function Auth() {
     setQrCode(null)
     setOrderRef(null)
     setAuthCountdown(0)
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current)
-      countdownRef.current = null
-    }
   }
 
   const handleBankIDLogin = () => {
@@ -142,9 +112,8 @@ export default function Auth() {
   }
 
   const retryLogin = () => {
-    resetAuthState()
     authMutation.reset()
-    authMutation.mutate()
+    handleBankIDLogin()
   }
 
   const cancelPolling = () => {
@@ -152,15 +121,6 @@ export default function Auth() {
     setShowBankIDModal(false)
     authMutation.reset()
   }
-
-  // Handle cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current)
-      }
-    }
-  }, [])
 
   return (
     <div className='min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-blue-50'>
@@ -220,7 +180,7 @@ export default function Auth() {
         isOpen={showBankIDModal}
         cancelPolling={cancelPolling}
         qrCode={qrCode}
-        authCountdown={authCountdown}
+        authCountdown={countdown}
         retryLogin={retryLogin}
       />
     </div>
