@@ -9,14 +9,20 @@ class BankIDServer
 private:
   std::string current_token;
   bool initialized = false;
+  BankID::BankIDConfig config;
 
 public:
-  BankIDServer()
+  BankIDServer(const BankID::BankIDConfig &bankid_config)
+      : config(bankid_config)
   {
-    initialized = BankID::Initialize();
+    initialized = BankID::Initialize(config);
     if (!initialized)
     {
-      std::cerr << "Failed to initialize BankID library" << std::endl;
+      std::cerr << "Failed to initialize BankID library with configuration" << std::endl;
+    }
+    else
+    {
+      std::cout << "BankID library initialized successfully with configuration" << std::endl;
     }
   }
 
@@ -28,21 +34,29 @@ public:
     }
   }
 
-  crow::response init_authentication(const std::string &personal_number = "199001011234")
+  crow::response init_authentication(const std::string &personal_number)
   {
     if (!initialized)
     {
       return crow::response(500, "BankID library not initialized");
     }
 
-    current_token = BankID::StartAuthentication(personal_number);
+    BankID::BankIDConfig auth_config = config;
+
+    if (!personal_number.empty())
+    {
+      BankID::Requirement req;
+      req.personalNumber = personal_number;
+      auth_config.setRequirement(req);
+    }
+
+    current_token = BankID::StartAuthentication(auth_config);
 
     if (current_token.empty())
     {
       return crow::response(500, "Failed to start authentication");
     }
 
-    // Simple JSON response without external JSON library
     std::string json_response = "{"
                                 "\"status\":\"success\","
                                 "\"token\":\"" +
@@ -67,7 +81,8 @@ public:
       return crow::response(400, "No active authentication session");
     }
 
-    std::string status = BankID::CheckAuthenticationStatus(current_token);
+    // Use the config-based status checking
+    std::string status = BankID::CheckAuthenticationStatus(current_token, config);
 
     // Simple JSON response without external JSON library
     std::string json_response = "{"
@@ -88,25 +103,71 @@ int main()
 {
   crow::SimpleApp app;
 
-  // Create BankID server instance
-  auto bankid_server = std::make_shared<BankIDServer>();
+  // Create BankID configuration for your project
+  // Example 1: Simple authentication
+  BankID::BankIDConfig simple_config(
+      "172.0.0.1",                                // endUserIp
+      "https://yourapp.example.com/auth/callback" // returnUrl
+  );
+
+  // Example 2: Enhanced authentication with user visible data
+  // BankID::BankIDConfig enhanced_config(
+  //   "192.168.1.100", // endUserIp
+  //   "https://yourapp.example.com/auth/callback", // returnUrl
+  //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==", // base64 encoded user visible data
+  //   true // returnRisk
+  // );
+
+  // Example 3: App-based authentication
+  // BankID::AppConfig app_config{
+  //   "com.yourcompany.yourapp", // appIdentifier
+  //   "iOS 17.1", // deviceOS
+  //   "iPhone15,2", // deviceModelName
+  //   "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456" // deviceIdentifier
+  // };
+  // BankID::BankIDConfig app_config_bankid(
+  //   "192.168.1.100",
+  //   "https://yourapp.example.com/auth/callback",
+  //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==",
+  //   app_config,
+  //   true
+  // );
+
+  // Example 4: Web-based authentication
+  // BankID::WebConfig web_config{
+  //   "yourapp.example.com", // referringDomain
+  //   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", // userAgent
+  //   "w1x2y3z4a5b6c7d8e9f0123456789012345678901234567890abcdef123456" // deviceIdentifier
+  // };
+  // BankID::BankIDConfig web_config_bankid(
+  //   "192.168.1.100",
+  //   "https://yourapp.example.com/auth/callback",
+  //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==",
+  //   web_config,
+  //   true
+  // );
+
+  // Create BankID server instance with the chosen configuration
+  BankIDServer bankid_server(simple_config);
 
   // GET /init endpoint
   CROW_ROUTE(app, "/init")
-  ([bankid_server](const crow::request &)
+  ([&bankid_server](const crow::request &)
    {
         std::cout << "GET /init - Starting authentication" << std::endl;
-        return bankid_server->init_authentication(); });
+        return bankid_server.init_authentication("12345678901"); });
 
   // GET /poll endpoint
   CROW_ROUTE(app, "/poll")
-  ([bankid_server](const crow::request &)
+  ([&bankid_server](const crow::request &)
    {
         std::cout << "GET /poll - Checking authentication status" << std::endl;
-        return bankid_server->poll_authentication(); });
+        return bankid_server.poll_authentication(); });
 
-  // Start server
   std::cout << "Starting BankID REST API server on port 8080..." << std::endl;
+  std::cout << "Available endpoints:" << std::endl;
+  std::cout << "  GET /init - Start authentication" << std::endl;
+  std::cout << "  GET /poll - Check authentication status" << std::endl;
   app.port(8080).multithreaded().run();
 
   return 0;
