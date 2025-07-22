@@ -4,30 +4,46 @@ cmake_minimum_required(VERSION 3.16)
 project(BankIDServer)
 
 # Enable SSL support for Crow
-set(CROW_ENABLE_SSL ON)
+set(CROW_ENABLE_SSL OFF)
 
 # Find required packages
-find_package(OpenSSL REQUIRED)
+if (CROW_ENABLE_SSL)
+  message(STATUS "CROW_ENABLE_SSL is ON, finding OpenSSL")
+  find_package(OpenSSL REQUIRED)
+endif()
+
 find_package(Crow REQUIRED)
 
 # Server executable
 add_executable(bankid_server main.cpp)
 
 # Enable SSL compilation flag
-target_compile_definitions(bankid_server PRIVATE CROW_ENABLE_SSL)
+if (CROW_ENABLE_SSL)
+    target_compile_definitions(bankid_server PRIVATE CROW_ENABLE_SSL)
+else()
+    target_compile_definitions(bankid_server PRIVATE CROW_DISABLE_SSL)
+endif()
 
 # Include directories for BankID headers
 target_include_directories(bankid_server PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/../bankid/includes
+    ${CMAKE_CURRENT_SOURCE_DIR}/includes
 )
 
-# Link libraries
-target_link_libraries(bankid_server PRIVATE 
+if (CROW_ENABLE_SSL)
+    target_link_libraries(bankid_server PRIVATE 
     Crow::Crow
     OpenSSL::SSL
     OpenSSL::Crypto
-    bankid_lib  # Link directly to our bankid library target
-)
+    bankid_lib)
+else()
+    target_link_libraries(bankid_server PRIVATE 
+    Crow::Crow
+    bankid_lib)
+endif()
+
+# Link libraries
+
 
 # Set executable properties
 set_target_properties(bankid_server PROPERTIES
