@@ -6,6 +6,9 @@ set(BANKID_LIB_SOURCES
 set(BANKID_INCLUDE_DIR
   ${CMAKE_CURRENT_LIST_DIR}/includes)
 
+# Find OpenSSL package
+find_package(OpenSSL REQUIRED)
+
 # Create the BankID library (shared/static based on BUILD_SHARED_LIBS)
 add_library(bankid_lib ${BANKID_LIB_SOURCES})
 
@@ -31,6 +34,8 @@ target_include_directories(bankid_lib PUBLIC
     $<BUILD_INTERFACE:${BANKID_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:include>
 )
+
+target_link_libraries(bankid_lib PUBLIC OpenSSL::SSL OpenSSL::Crypto)
 
 # Installation rules
 include(GNUInstallDirs)

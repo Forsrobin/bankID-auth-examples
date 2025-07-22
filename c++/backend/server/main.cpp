@@ -9,9 +9,8 @@ int main()
   // SSL Configuration for BankID
   BankID::SSLConfig test_ssl_config(
       BankID::Environment::TEST,
-      "certs/FPTestcert5_20240610.p12", // P12 certificate file
-      "qwerty123"                       // P12 passphrase
-  );
+      "certs/bankid_cert.pem",
+      "certs/bankid_key.pem");
 
   if (!test_ssl_config.validate())
   {
@@ -19,12 +18,16 @@ int main()
     return 1;
   }
 
-  // Create BankID configuration for your project
-  BankID::BankIDConfig simple_config(
-      "172.0.0.1",                                 // endUserIp
-      "https://yourapp.example.com/auth/callback", // returnUrl
-      test_ssl_config                              // SSL configuration
+  // Create BankID configuration for your project using the simple factory method
+  BankID::BankIDConfig simple_config = BankID::BankIDConfig::createSimple(
+      "172.0.0.1",    // endUserIp
+      test_ssl_config // SSL configuration
   );
+
+  // Set optional fields using fluent interface
+  simple_config.setReturnUrl("https://yourapp.example.com/auth/callback")
+      .setReturnRisk(true)
+      .setUserVisibleData("VEhJUyBJUyBBIFRFU1Q=");
 
   // Create your BankID session instance
   BankID::Session bankid_session(simple_config);
@@ -42,9 +45,8 @@ int main()
   ([&bankid_session](const crow::request &)
    {
         std::cout << "GET /init - Starting authentication" << std::endl;
-        
-        std::string token = bankid_session.auth("12345678901");
-        
+        std::string token = bankid_session.auth();
+
         if (token.empty())
         {
           return crow::response(500, "Failed to start authentication");
@@ -85,22 +87,8 @@ int main()
         resp.add_header("Content-Type", "application/json");
         return resp; });
 
-  // Configure SSL if certificates are available
-  const auto &ssl_config = simple_config.getSSLConfig();
-
-  // Check for PEM certificates first (preferred for Crow)
-  if (file_exists(ssl_config.pem_combined_path) && file_exists(ssl_config.p12_file_path))
-  {
-    log_certificates_found(ssl_config);
-    log_starting_server();
-
-    app.port(8080).multithreaded().run();
-  }
-  else
-  {
-    log_error_no_ssl_found(ssl_config);
-    return 0;
-  }
+  log_starting_server();
+  app.port(8080).multithreaded().run();
 
   return 0;
 }

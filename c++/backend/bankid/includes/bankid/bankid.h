@@ -1,8 +1,12 @@
 #pragma once
 
+#define CPPHTTPLIB_OPENSSL_SUPPORT
+#include "bankid/httplib.h"
+
 #include <string>
 #include <optional>
 #include <filesystem>
+#include <vector>
 
 #ifdef _WIN32
 #ifdef BANKID_STATIC
@@ -26,25 +30,29 @@ bool file_exists(const std::string &path)
 
 namespace BankID
 {
-  // Configuration structures
+  // Configuration structures matching BankID API
   struct BANKID_API AppConfig
   {
-    std::string appIdentifier;
+    std::string appIdentifier; // Android package or iOS bundle ID
     std::string deviceOS;
+    std::string deviceIdentifier; // Unique, persistent device ID
     std::string deviceModelName;
-    std::string deviceIdentifier;
   };
 
   struct BANKID_API WebConfig
   {
-    std::string referringDomain;
+    std::string deviceIdentifier; // Unique browser/device identifier
+    std::string referringDomain;  // Punycode if IDN
     std::string userAgent;
-    std::string deviceIdentifier;
   };
 
   struct BANKID_API Requirement
   {
+    std::optional<std::string> cardReader;                       // "class1" or "class2"
+    std::optional<std::vector<std::string>> certificatePolicies; // e.g. "1.2.752.78.1.1"
+    std::optional<bool> mrtd;
     std::optional<std::string> personalNumber;
+    std::optional<bool> pinCode;
   };
 
   // SSL/Certificate configuration
@@ -70,28 +78,30 @@ namespace BankID
   struct BANKID_API SSLConfig
   {
     Environment environment = Environment::TEST;
-    std::string p12_file_path = "certs/FPTestcert5_20240610.p12";
-    std::string p12_passphrase = "qwerty123";
-    std::string ca_file_path = "certs/test.ca";                  // Will be set based on environment
-    std::string pem_cert_path = "certs/bankid_cert.pem";         // PEM certificate for Crow
-    std::string pem_key_path = "certs/bankid_key.pem";           // PEM private key for Crow
-    std::string pem_combined_path = "certs/bankid_combined.pem"; // Combined PEM file
+    std::string ca_file_path = "certs/test.ca";          // Will be set based on environment
+    std::string pem_cert_path = "certs/bankid_cert.pem"; // PEM certificate for Crow
+    std::string pem_key_path = "certs/bankid_key.pem";   // PEM private key for Crow
 
     SSLConfig(Environment env = Environment::TEST,
-              const std::string &p12_path = "certs/FPTestcert5_20240610.p12",
-              const std::string &passphrase = "qwerty123")
-        : environment(env), p12_file_path(p12_path), p12_passphrase(passphrase)
+              const std::string &pem_cert_path = "certs/bankid_cert.pem",
+              const std::string &pem_key_path = "certs/bankid_key.pem")
+        : environment(env), pem_cert_path(pem_cert_path), pem_key_path(pem_key_path)
     {
-      ca_file_path = (env == Environment::TEST) ? "certs/test.ca" : "certs/prod.ca";
-      pem_cert_path = "certs/bankid_cert.pem";
-      pem_key_path = "certs/bankid_key.pem";
-      pem_combined_path = "certs/bankid_combined.pem";
+      // Set the CA file path based on the environment
+      if (environment == Environment::TEST)
+      {
+        ca_file_path = "certs/test.ca";
+      }
+      else
+      {
+        ca_file_path = "certs/production.ca";
+      }
     }
 
     bool validate() const
     {
       // Verify certificate files exist
-      if (!file_exists(this->p12_file_path))
+      if (!file_exists(this->pem_cert_path))
       {
         return false;
       }
@@ -109,49 +119,99 @@ namespace BankID
   class BANKID_API BankIDConfig
   {
   private:
+    // Required field
     std::string m_endUserIp;
-    std::string m_returnUrl;
-    std::optional<std::string> m_userVisibleData;
-    bool m_returnRisk;
+
+    // Optional fields
+    std::optional<bool> m_returnRisk;
+    std::optional<std::string> m_returnUrl;
+    std::optional<std::string> m_userNonVisibleData;    // base64-encoded
+    std::optional<std::string> m_userVisibleData;       // base64-encoded UTF-8
+    std::optional<std::string> m_userVisibleDataFormat; // "plaintext" or "simpleMarkdownV1"
     std::optional<AppConfig> m_appConfig;
     std::optional<WebConfig> m_webConfig;
     std::optional<Requirement> m_requirement;
     SSLConfig m_sslConfig;
 
   public:
-    // Constructor overloads
-    // Simple authentication (basic)
-    BankIDConfig(const std::string &endUserIp, const std::string &returnUrl,
-                 const SSLConfig &sslConfig = SSLConfig());
+    // Constructor - only endUserIp is required, everything else is optional
+    BankIDConfig(const std::string &endUserIp, const SSLConfig &sslConfig = SSLConfig());
 
-    // Authentication with user visible data and risk
-    BankIDConfig(const std::string &endUserIp, const std::string &returnUrl,
-                 const std::string &userVisibleData, bool returnRisk = true,
-                 const SSLConfig &sslConfig = SSLConfig());
+    // Static factory methods for different configuration types
+    // Simple configuration (just endUserIp and basic options)
+    static BankIDConfig createSimple(const std::string &endUserIp,
+                                     const SSLConfig &sslConfig = SSLConfig());
 
-    // App-based authentication
-    BankIDConfig(const std::string &endUserIp, const std::string &returnUrl,
-                 const std::string &userVisibleData, const AppConfig &appConfig,
-                 bool returnRisk = true, const SSLConfig &sslConfig = SSLConfig());
+    // App-based configuration
+    static BankIDConfig createApp(const std::string &endUserIp,
+                                  const AppConfig &appConfig,
+                                  const SSLConfig &sslConfig = SSLConfig());
 
-    // Web-based authentication
-    BankIDConfig(const std::string &endUserIp, const std::string &returnUrl,
-                 const std::string &userVisibleData, const WebConfig &webConfig,
-                 bool returnRisk = true, const SSLConfig &sslConfig = SSLConfig());
+    // Web-based configuration
+    static BankIDConfig createWeb(const std::string &endUserIp,
+                                  const WebConfig &webConfig,
+                                  const SSLConfig &sslConfig = SSLConfig());
 
-    // Getters
-    bool getReturnRisk() const { return m_returnRisk; }
+    // Getters for required field
     const std::string &getEndUserIp() const { return m_endUserIp; }
-    const std::string &getReturnUrl() const { return m_returnUrl; }
+
+    // Getters for optional fields
+    const std::optional<bool> &getReturnRisk() const { return m_returnRisk; }
+    const std::optional<std::string> &getReturnUrl() const { return m_returnUrl; }
+    const std::optional<std::string> &getUserNonVisibleData() const { return m_userNonVisibleData; }
     const std::optional<std::string> &getUserVisibleData() const { return m_userVisibleData; }
+    const std::optional<std::string> &getUserVisibleDataFormat() const { return m_userVisibleDataFormat; }
     const std::optional<AppConfig> &getAppConfig() const { return m_appConfig; }
     const std::optional<WebConfig> &getWebConfig() const { return m_webConfig; }
     const std::optional<Requirement> &getRequirement() const { return m_requirement; }
     const SSLConfig &getSSLConfig() const { return m_sslConfig; }
 
-    // Setter for requirement (can be called after construction)
-    void setRequirement(const Requirement &requirement) { m_requirement = requirement; }
-    void setSSLConfig(const SSLConfig &sslConfig) { m_sslConfig = sslConfig; }
+    // Setters for optional fields (fluent interface)
+    BankIDConfig &setReturnRisk(bool returnRisk)
+    {
+      m_returnRisk = returnRisk;
+      return *this;
+    }
+    BankIDConfig &setReturnUrl(const std::string &returnUrl)
+    {
+      m_returnUrl = returnUrl;
+      return *this;
+    }
+    BankIDConfig &setUserNonVisibleData(const std::string &data)
+    {
+      m_userNonVisibleData = data;
+      return *this;
+    }
+    BankIDConfig &setUserVisibleData(const std::string &data)
+    {
+      m_userVisibleData = data;
+      return *this;
+    }
+    BankIDConfig &setUserVisibleDataFormat(const std::string &format)
+    {
+      m_userVisibleDataFormat = format;
+      return *this;
+    }
+    BankIDConfig &setAppConfig(const AppConfig &appConfig)
+    {
+      m_appConfig = appConfig;
+      return *this;
+    }
+    BankIDConfig &setWebConfig(const WebConfig &webConfig)
+    {
+      m_webConfig = webConfig;
+      return *this;
+    }
+    BankIDConfig &setRequirement(const Requirement &requirement)
+    {
+      m_requirement = requirement;
+      return *this;
+    }
+    BankIDConfig &setSSLConfig(const SSLConfig &sslConfig)
+    {
+      m_sslConfig = sslConfig;
+      return *this;
+    }
   };
 
   // BankID Session class for managing authentication sessions
@@ -174,7 +234,6 @@ namespace BankID
 
     // Start authentication and return token
     std::string startAuthentication();
-    std::string startAuthentication(const std::string &personalNumber);
 
     // Check authentication status using stored token
     std::string checkStatus();
@@ -182,14 +241,11 @@ namespace BankID
 
     // Convenience method for authentication
     std::string auth() { return startAuthentication(); }
-    std::string auth(const std::string &personalNumber) { return startAuthentication(personalNumber); }
 
     // Get current token
     const std::string &getCurrentToken() const { return m_current_token; }
-
     // Check if session is initialized
     bool isInitialized() const { return m_initialized; }
-
     // Get configuration
     const BankIDConfig &getConfig() const { return m_config; }
   };

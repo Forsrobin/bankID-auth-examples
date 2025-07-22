@@ -38,9 +38,11 @@
     {
       "label": "Run Server (Static)",
       "type": "shell",
-      "command": "build/vs2022-deb/bankid/server/bankid_server.exe",
+      "command": "./bankid_server.exe",
+      "options": {
+        "cwd": "${workspaceFolder}/build/vs2022-deb/server/Debug"
+      },
       "group": "test",
-      "dependsOn": "Build Static Library (Debug)",
       "isBackground": true
     },
     {
@@ -51,7 +53,6 @@
       "options": {
         "cwd": "${workspaceFolder}/build/vs2022-deb-shared/server/Debug"
       },
-      // "dependsOn": "Build Shared Library (Debug)",
       "isBackground": true
     }
   ]
