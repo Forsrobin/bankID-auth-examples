@@ -1,5 +1,5 @@
 'use client'
-import BankIdLogga from '@/assets/images/bankid.png'
+import BankIdImage from '@/assets/images/bankid.png'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -147,7 +147,7 @@ export const BankIDModal = ({ isOpen, cancelPolling, qrCode, authState, setAuthS
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
             <DialogTitle className='flex items-center space-x-4'>
-              <Image src={BankIdLogga} alt='BankID Logo' width={100} height={100} className='h-8 w-auto' />
+              <Image src={BankIdImage} alt='BankID Logo' width={100} height={100} className='h-8 w-auto' />
               <span>BankID-autentisering</span>
             </DialogTitle>
           </DialogHeader>
