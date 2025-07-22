@@ -17,9 +17,10 @@ Each example includes:
 
 | Language / Framework | Path / Folder             |
 | -------------------- | ------------------------- |
-| ✅ Next.js           | `/examples/nextjs-bankid` |
+| ✅ Next.js           | `/nextjs` |
 | 🚧 React & Node.js   | _(coming soon)_           |
 | 🚧 C++               | _(coming soon)_           |
+| 🚧 C#                | _(coming soon)_           |
 | 🚧 Rust              | _(coming soon)_           |
 | 🚧 Python            | _(coming soon)_           |
 | 🚧 Go                | _(coming soon)_           |
