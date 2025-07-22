@@ -1,13 +1,7 @@
 #include "bankid/bankid.h"
-#include <iostream>
-#include <chrono>
-#include <thread>
 
 namespace BankID
 {
-  // BankIDConfig constructor implementations
-
-  // Main constructor - only endUserIp is required
   BankIDConfig::BankIDConfig(const std::string &endUserIp, const SSLConfig &sslConfig)
       : m_endUserIp(endUserIp), m_sslConfig(sslConfig)
   {
@@ -17,7 +11,6 @@ namespace BankID
     std::cout << "  CA File: " << m_sslConfig.ca_file_path << std::endl;
   }
 
-  // Static factory methods
   BankIDConfig BankIDConfig::createSimple(const std::string &endUserIp, const SSLConfig &sslConfig)
   {
     std::cout << "BankID Config: Creating simple configuration" << std::endl;
@@ -53,7 +46,6 @@ namespace BankID
     return config;
   }
 
-  // Session class implementation
   Session::Session(const BankIDConfig &config)
       : m_config(config), m_initialized(false), m_current_token("")
   {
@@ -63,100 +55,97 @@ namespace BankID
 
   Session::~Session()
   {
+    delete cli;
     std::cout << "BankID Session: Destroying session" << std::endl;
   }
 
-  bool Session::initialize()
+  const bool Session::initialize()
   {
     std::cout << "BankID Session: Initializing session for " << m_config.getEndUserIp() << std::endl;
-    // Here you would typically initialize SSL context, validate certificates, etc.
     if (!m_config.getSSLConfig().validate())
     {
-      std::cout << "BankID Session: SSL configuration validation failed" << std::endl;
+      std::cerr << "BankID Session: SSL configuration validation failed" << std::endl;
       return false;
     }
+
+    this->cli = new httplib::SSLClient("appapi2.test.bankid.com", 443,
+                                       m_config.getSSLConfig().pem_cert_path.c_str(),
+                                       m_config.getSSLConfig().pem_key_path.c_str());
+
+    // Set CA certificate for server verification
+    this->cli->set_ca_cert_path(m_config.getSSLConfig().ca_file_path.c_str());
+
+    this->cli->enable_server_certificate_verification(true);
+    this->cli->enable_server_hostname_verification(m_config.getSSLConfig().environment == Environment::PRODUCTION);
+
+    // Set connection timeout (optional)
+    this->cli->set_connection_timeout(30); // 30 seconds
+    this->cli->set_read_timeout(30);       // 30 seconds
+
     std::cout << "BankID Session: Session initialized successfully" << std::endl;
     return true;
   }
 
-  /**
-   * Start authentication process and return a token.
-   * This simulates the process of starting an authentication session.
-   * @return A string token representing the authentication session.
-   * If the session is not initialized, it returns an empty string.
-   */
-  std::string Session::startAuthentication()
+  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::auth()
   {
     if (!m_initialized)
     {
       std::cout << "BankID Session: Session not initialized" << std::endl;
-      return "";
+      return std::unexpected(BankID::AuthError{
+          500, // Internal error status
+          BankID::BankIdErrorCode::NOT_INITIALIZED, "Session not initialized"});
     }
-    std::cout << "BankID Session: Starting authentication for " << m_config.getEndUserIp() << std::endl;
 
-    httplib::SSLClient cli("appapi2.test.bankid.com", 443,
-                           m_config.getSSLConfig().pem_cert_path.c_str(),
-                           m_config.getSSLConfig().pem_key_path.c_str());
+    json payload;
+    payload["endUserIp"] = m_config.getEndUserIp();
 
-    // Set CA certificate for server verification
-    cli.set_ca_cert_path(m_config.getSSLConfig().ca_file_path.c_str());
-
-    cli.enable_server_certificate_verification(true);
-    cli.enable_server_hostname_verification(m_config.getSSLConfig().environment == Environment::PRODUCTION);
-
-    // Set connection timeout (optional)
-    cli.set_connection_timeout(30); // 30 seconds
-    cli.set_read_timeout(30);       // 30 seconds
-
-    auto res = cli.Post("/rp/v6.0/auth",
-                        R"({"endUserIp":")" + m_config.getEndUserIp() + R"("})", 
-                        "application/json");
-
-    // Log the response
-    if (res)
+    // App/Web config
+    if (auto app = m_config.getAppConfig())
     {
-      if (res->status == 200)
-      {
-        std::cout << "Response: " << res->body << std::endl;
-      }
-      else
-      {
-        std::cout << "HTTP Error: " << res->status << std::endl;
-      }
+      payload["app"] = {
+          {"appIdentifier", app->appIdentifier},
+          {"deviceOS", app->deviceOS},
+          {"deviceModelName", app->deviceModelName},
+          {"deviceIdentifier", app->deviceIdentifier}};
     }
-    else
+    else if (auto web = m_config.getWebConfig())
     {
-      auto err = res.error();
-      std::cout << "Request failed: " << httplib::to_string(err) << std::endl;
+      payload["web"] = {
+          {"deviceIdentifier", web->deviceIdentifier},
+          {"referringDomain", web->referringDomain},
+          {"userAgent", web->userAgent}};
     }
 
-    return m_current_token;
+    auto set_optional = [&](const std::string &key, const auto &opt)
+    {
+      if (opt)
+        payload[key] = *opt;
+    };
+
+    set_optional("returnRisk", m_config.getReturnRisk());
+    set_optional("userVisibleData", m_config.getUserVisibleData());
+    set_optional("userVisibleDataFormat", m_config.getUserVisibleDataFormat());
+    set_optional("userNonVisibleData", m_config.getUserNonVisibleData());
+    set_optional("returnUrl", m_config.getReturnUrl());
+
+    // Requirement
+    if (auto req = m_config.getRequirement())
+    {
+      payload["requirement"] = {
+          {"personalNumber", req->personalNumber},
+          {"cardReader", req->cardReader},
+          {"certificatePolicies", req->certificatePolicies},
+          {"mrtd", req->mrtd},
+          {"pinCode", req->pinCode}};
+    }
+
+    std::cout << "BankID Session: Sending authentication request" << std::endl;
+    std::cout << "Payload: " << payload.dump(2) << std::endl;
+
+    auto res = cli->Post("/rp/v6.0/auth",
+                         payload.dump(),
+                         "application/json");
+
+    return validateStatusAndParse<BankID::AuthResponse>(res);
   }
-
-  std::string Session::checkStatus()
-  {
-    return checkStatus(m_current_token);
-  }
-
-  std::string Session::checkStatus(const std::string &token)
-  {
-    if (!m_initialized)
-    {
-      std::cout << "BankID Session: Session not initialized" << std::endl;
-      return "ERROR";
-    }
-
-    if (token.empty())
-    {
-      std::cout << "BankID Session: No token provided" << std::endl;
-      return "ERROR";
-    }
-
-    std::cout << "BankID Session: Checking authentication status for token: " << token
-              << " with End User IP: " << m_config.getEndUserIp() << std::endl;
-
-    // Simulate authentication status check
-    return "COMPLETED";
-  }
-
 }

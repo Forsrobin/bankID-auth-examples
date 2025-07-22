@@ -4,6 +4,9 @@
 #include <memory>
 #include <string>
 
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
 int main()
 {
   // SSL Configuration for BankID
@@ -14,23 +17,39 @@ int main()
 
   if (!test_ssl_config.validate())
   {
-    std::cout << "SSL configuration validation failed. Exiting." << std::endl;
     return 1;
   }
 
-  // Create BankID configuration for your project using the simple factory method
-  BankID::BankIDConfig simple_config = BankID::BankIDConfig::createSimple(
-      "172.0.0.1",    // endUserIp
-      test_ssl_config // SSL configuration
-  );
+  // // Create BankID configuration for your project using the simple factory method
+  // BankID::BankIDConfig simple_config = BankID::BankIDConfig::createSimple(
+  //     "172.0.0.1",    // endUserIp
+  //     test_ssl_config // SSL configuration
+  // );
 
-  // Set optional fields using fluent interface
-  simple_config.setReturnUrl("https://yourapp.example.com/auth/callback")
+  // // Set optional fields using fluent interface
+  // simple_config.setReturnUrl("https://yourapp.example.com/auth/callback")
+  //     .setReturnRisk(true)
+  //     .setUserVisibleData("VEhJUyBJUyBBIFRFU1Q=");
+
+  BankID::AppConfig app_config{
+      "com.yourcompany.yourapp",                                         // appIdentifier
+      "iOS 17.1",                                                        // deviceOS
+      "iPhone15,2",                                                      // deviceModelName
+      "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456" // deviceIdentifier
+  };
+
+  BankID::BankIDConfig app_config_bankid = BankID::BankIDConfig::createApp(
+      "172.0.0.1",
+      app_config,
+      test_ssl_config);
+
+  app_config_bankid.setReturnUrl("https://yourapp.example.com/auth/callback")
       .setReturnRisk(true)
       .setUserVisibleData("VEhJUyBJUyBBIFRFU1Q=");
 
+
   // Create your BankID session instance
-  BankID::Session bankid_session(simple_config);
+  BankID::Session bankid_session(app_config_bankid);
 
   if (!bankid_session.isInitialized())
   {
@@ -45,20 +64,23 @@ int main()
   ([&bankid_session](const crow::request &)
    {
         std::cout << "GET /init - Starting authentication" << std::endl;
-        std::string token = bankid_session.auth();
+        auto response = bankid_session.auth();
 
-        if (token.empty())
+
+        if (!response)
         {
-          return crow::response(500, "Failed to start authentication");
+          const auto &error = response.error();
+          return crow::response(error.status, error.details);
         }
 
-        std::string json_response = "{"
-                                    "\"status\":\"success\","
-                                    "\"token\":\"" + token + "\","
-                                    "\"message\":\"Authentication initiated\""
-                                    "}";
+        // Simple JSON response using nlohmann::json
+        json json_response;
+        json_response["status"] = "success";
+        json_response["orderRef"] = response->orderRef;
+        json_response["autoStartToken"] = response->autoStartToken;
 
-        crow::response resp(200, json_response);
+
+        crow::response resp(200, json_response.dump());
         resp.add_header("Content-Type", "application/json");
         return resp; });
 
@@ -74,13 +96,11 @@ int main()
           return crow::response(400, "No active authentication session");
         }
 
-        std::string status = bankid_session.checkStatus();
 
         // Simple JSON response without external JSON library
         std::string json_response = "{"
                                     "\"status\":\"success\","
                                     "\"token\":\"" + current_token + "\","
-                                    "\"auth_status\":\"" + status + "\""
                                     "}";
 
         crow::response resp(200, json_response);

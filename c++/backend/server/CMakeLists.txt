@@ -13,6 +13,7 @@ if (CROW_ENABLE_SSL)
 endif()
 
 find_package(Crow REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # Server executable
 add_executable(bankid_server main.cpp)
@@ -35,6 +36,7 @@ if (CROW_ENABLE_SSL)
     Crow::Crow
     OpenSSL::SSL
     OpenSSL::Crypto
+    nlohmann_json::nlohmann_json
     bankid_lib)
 else()
     target_link_libraries(bankid_server PRIVATE 

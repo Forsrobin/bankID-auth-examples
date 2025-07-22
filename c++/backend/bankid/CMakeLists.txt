@@ -9,6 +9,9 @@ set(BANKID_INCLUDE_DIR
 # Find OpenSSL package
 find_package(OpenSSL REQUIRED)
 
+# Find the nolohmann_json package
+find_package(nlohmann_json REQUIRED)
+
 # Create the BankID library (shared/static based on BUILD_SHARED_LIBS)
 add_library(bankid_lib ${BANKID_LIB_SOURCES})
 
@@ -35,7 +38,7 @@ target_include_directories(bankid_lib PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(bankid_lib PUBLIC OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(bankid_lib PUBLIC OpenSSL::SSL OpenSSL::Crypto nlohmann_json::nlohmann_json)
 
 # Installation rules
 include(GNUInstallDirs)

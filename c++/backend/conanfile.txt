@@ -1,6 +1,7 @@
 [requires]
 crowcpp-crow/1.2.0
 openssl/3.5.1
+nlohmann_json/3.12.0
 [generators]
 CMakeDeps
 CMakeToolchain
