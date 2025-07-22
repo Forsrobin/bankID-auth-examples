@@ -80,22 +80,116 @@ namespace BankID
     std::cout << "  CA File: " << m_sslConfig.ca_file_path << std::endl;
   }
 
-  // New functions using BankIDConfig
+  // Session class implementation
+  Session::Session(const BankIDConfig &config)
+      : m_config(config), m_initialized(false), m_current_token("")
+  {
+    std::cout << "BankID Session: Creating session with config for End User IP: " << m_config.getEndUserIp() << std::endl;
+    m_initialized = initialize();
+  }
+
+  Session::~Session()
+  {
+    std::cout << "BankID Session: Destroying session" << std::endl;
+  }
+
+  bool Session::initialize()
+  {
+    std::cout << "BankID Session: Initializing session for " << m_config.getEndUserIp() << std::endl;
+    // Here you would typically initialize SSL context, validate certificates, etc.
+    if (!m_config.getSSLConfig().validate())
+    {
+      std::cout << "BankID Session: SSL configuration validation failed" << std::endl;
+      return false;
+    }
+    std::cout << "BankID Session: Session initialized successfully" << std::endl;
+    return true;
+  }
+
+  std::string Session::startAuthentication()
+  {
+    if (!m_initialized)
+    {
+      std::cout << "BankID Session: Session not initialized" << std::endl;
+      return "";
+    }
+
+    std::cout << "BankID Session: Starting authentication for " << m_config.getEndUserIp() << std::endl;
+    m_current_token = "session_auth_token_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
+    std::cout << "BankID Session: Generated token: " << m_current_token << std::endl;
+    return m_current_token;
+  }
+
+  std::string Session::startAuthentication(const std::string &personalNumber)
+  {
+    if (!m_initialized)
+    {
+      std::cout << "BankID Session: Session not initialized" << std::endl;
+      return "";
+    }
+
+    // Create a temporary config with the personal number requirement
+    BankIDConfig auth_config = m_config;
+    if (!personalNumber.empty())
+    {
+      Requirement req;
+      req.personalNumber = personalNumber;
+      auth_config.setRequirement(req);
+    }
+
+    std::cout << "BankID Session: Starting authentication for " << auth_config.getEndUserIp() 
+              << " with personal number: " << personalNumber << std::endl;
+    m_current_token = "session_auth_token_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
+    std::cout << "BankID Session: Generated token: " << m_current_token << std::endl;
+    return m_current_token;
+  }
+
+  std::string Session::checkStatus()
+  {
+    return checkStatus(m_current_token);
+  }
+
+  std::string Session::checkStatus(const std::string &token)
+  {
+    if (!m_initialized)
+    {
+      std::cout << "BankID Session: Session not initialized" << std::endl;
+      return "ERROR";
+    }
+
+    if (token.empty())
+    {
+      std::cout << "BankID Session: No token provided" << std::endl;
+      return "ERROR";
+    }
+
+    std::cout << "BankID Session: Checking authentication status for token: " << token 
+              << " with End User IP: " << m_config.getEndUserIp() << std::endl;
+    
+    // Simulate authentication status check
+    return "COMPLETED";
+  }
+
+  // Legacy functions (kept for backward compatibility, but deprecated)
   bool Initialize(const BankIDConfig &config)
   {
-    std::cout << "BankID Library: Initializing" << config.getEndUserIp() << std::endl;
-    return true;
+    std::cout << "BankID Library: [DEPRECATED] Initialize function called. Use Session class instead." << std::endl;
+    std::cout << "BankID Library: Initializing for " << config.getEndUserIp() << std::endl;
+    return config.getSSLConfig().validate();
   }
 
   std::string StartAuthentication(const BankIDConfig &config)
   {
-    std::cout << "BankID Library: Starting authentication..." << config.getEndUserIp() << std::endl;
-    return "config_auth_token_";
+    std::cout << "BankID Library: [DEPRECATED] StartAuthentication function called. Use Session class instead." << std::endl;
+    std::cout << "BankID Library: Starting authentication for " << config.getEndUserIp() << std::endl;
+    return "legacy_auth_token_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
   }
 
   std::string CheckAuthenticationStatus(const std::string &token, const BankIDConfig &config)
   {
-    std::cout << "BankID Library: Checking authentication status for token: " << token << " with End User IP: " << config.getEndUserIp() << std::endl;
+    std::cout << "BankID Library: [DEPRECATED] CheckAuthenticationStatus function called. Use Session class instead." << std::endl;
+    std::cout << "BankID Library: Checking authentication status for token: " << token 
+              << " with End User IP: " << config.getEndUserIp() << std::endl;
     return "COMPLETED";
   }
 }

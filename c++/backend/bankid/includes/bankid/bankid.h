@@ -154,10 +154,45 @@ namespace BankID
     void setSSLConfig(const SSLConfig &sslConfig) { m_sslConfig = sslConfig; }
   };
 
-  // New functions using BankIDConfig
-  BANKID_API bool Initialize(const BankIDConfig &config);
-  BANKID_API std::string StartAuthentication(const BankIDConfig &config);
-  BANKID_API std::string CheckAuthenticationStatus(const std::string &token, const BankIDConfig &config);
+  // BankID Session class for managing authentication sessions
+  class BANKID_API Session
+  {
+  private:
+    BankIDConfig m_config;
+    bool m_initialized;
+    std::string m_current_token;
+
+  public:
+    // Constructor
+    Session(const BankIDConfig &config);
+
+    // Destructor
+    ~Session();
+
+    // Initialize the session
+    bool initialize();
+
+    // Start authentication and return token
+    std::string startAuthentication();
+    std::string startAuthentication(const std::string &personalNumber);
+
+    // Check authentication status using stored token
+    std::string checkStatus();
+    std::string checkStatus(const std::string &token);
+
+    // Convenience method for authentication
+    std::string auth() { return startAuthentication(); }
+    std::string auth(const std::string &personalNumber) { return startAuthentication(personalNumber); }
+
+    // Get current token
+    const std::string &getCurrentToken() const { return m_current_token; }
+
+    // Check if session is initialized
+    bool isInitialized() const { return m_initialized; }
+
+    // Get configuration
+    const BankIDConfig &getConfig() const { return m_config; }
+  };
 }
 
 #ifdef _WIN32

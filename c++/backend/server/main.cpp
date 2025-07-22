@@ -4,87 +4,6 @@
 #include <memory>
 #include <string>
 
-class BankIDServer
-{
-private:
-  std::string current_token;
-  bool initialized = false;
-  BankID::BankIDConfig config;
-
-public:
-  BankIDServer(const BankID::BankIDConfig &bankid_config)
-      : config(bankid_config)
-  {
-    initialized = BankID::Initialize(config);
-  }
-
-  ~BankIDServer() {}
-
-  crow::response init_authentication(const std::string &personal_number)
-  {
-    if (!initialized)
-    {
-      return crow::response(500, "BankID library not initialized");
-    }
-
-    BankID::BankIDConfig auth_config = config;
-
-    if (!personal_number.empty())
-    {
-      BankID::Requirement req;
-      req.personalNumber = personal_number;
-      auth_config.setRequirement(req);
-    }
-
-    current_token = BankID::StartAuthentication(auth_config);
-
-    if (current_token.empty())
-    {
-      return crow::response(500, "Failed to start authentication");
-    }
-
-    std::string json_response = "{"
-                                "\"status\":\"success\","
-                                "\"token\":\"" +
-                                current_token + "\","
-                                                "\"message\":\"Authentication initiated\""
-                                                "}";
-
-    crow::response resp(200, json_response);
-    resp.add_header("Content-Type", "application/json");
-    return resp;
-  }
-
-  crow::response poll_authentication()
-  {
-    if (!initialized)
-    {
-      return crow::response(500, "BankID library not initialized");
-    }
-
-    if (current_token.empty())
-    {
-      return crow::response(400, "No active authentication session");
-    }
-
-    // Use the config-based status checking
-    std::string status = BankID::CheckAuthenticationStatus(current_token, config);
-
-    // Simple JSON response without external JSON library
-    std::string json_response = "{"
-                                "\"status\":\"success\","
-                                "\"token\":\"" +
-                                current_token + "\","
-                                                "\"auth_status\":\"" +
-                                status + "\""
-                                         "}";
-
-    crow::response resp(200, json_response);
-    resp.add_header("Content-Type", "application/json");
-    return resp;
-  }
-};
-
 int main()
 {
   // SSL Configuration for BankID
@@ -107,24 +26,64 @@ int main()
       test_ssl_config                              // SSL configuration
   );
 
-  // Create your BankID server instance
-  BankIDServer bankid_server(simple_config);
+  // Create your BankID session instance
+  BankID::Session bankid_session(simple_config);
+
+  if (!bankid_session.isInitialized())
+  {
+    std::cout << "BankID session initialization failed. Exiting." << std::endl;
+    return 1;
+  }
 
   crow::SimpleApp app;
 
   // GET /init endpoint
   CROW_ROUTE(app, "/init")
-  ([&bankid_server](const crow::request &)
+  ([&bankid_session](const crow::request &)
    {
         std::cout << "GET /init - Starting authentication" << std::endl;
-        return bankid_server.init_authentication("12345678901"); });
+        
+        std::string token = bankid_session.auth("12345678901");
+        
+        if (token.empty())
+        {
+          return crow::response(500, "Failed to start authentication");
+        }
+
+        std::string json_response = "{"
+                                    "\"status\":\"success\","
+                                    "\"token\":\"" + token + "\","
+                                    "\"message\":\"Authentication initiated\""
+                                    "}";
+
+        crow::response resp(200, json_response);
+        resp.add_header("Content-Type", "application/json");
+        return resp; });
 
   // GET /poll endpoint
   CROW_ROUTE(app, "/poll")
-  ([&bankid_server](const crow::request &)
+  ([&bankid_session](const crow::request &)
    {
         std::cout << "GET /poll - Checking authentication status" << std::endl;
-        return bankid_server.poll_authentication(); });
+        
+        std::string current_token = bankid_session.getCurrentToken();
+        if (current_token.empty())
+        {
+          return crow::response(400, "No active authentication session");
+        }
+
+        std::string status = bankid_session.checkStatus();
+
+        // Simple JSON response without external JSON library
+        std::string json_response = "{"
+                                    "\"status\":\"success\","
+                                    "\"token\":\"" + current_token + "\","
+                                    "\"auth_status\":\"" + status + "\""
+                                    "}";
+
+        crow::response resp(200, json_response);
+        resp.add_header("Content-Type", "application/json");
+        return resp; });
 
   // Configure SSL if certificates are available
   const auto &ssl_config = simple_config.getSSLConfig();
