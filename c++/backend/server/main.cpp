@@ -3,14 +3,6 @@
 #include <crow.h>
 #include <memory>
 #include <string>
-#include <iostream>
-#include <filesystem>
-
-// Helper function to check if file exists
-bool file_exists(const std::string &path)
-{
-  return std::filesystem::exists(path);
-}
 
 class BankIDServer
 {
@@ -24,23 +16,9 @@ public:
       : config(bankid_config)
   {
     initialized = BankID::Initialize(config);
-    if (!initialized)
-    {
-      std::cerr << "Failed to initialize BankID library with configuration" << std::endl;
-    }
-    else
-    {
-      std::cout << "BankID library initialized successfully with configuration" << std::endl;
-    }
   }
 
-  ~BankIDServer()
-  {
-    if (initialized)
-    {
-      BankID::Shutdown();
-    }
-  }
+  ~BankIDServer() {}
 
   crow::response init_authentication(const std::string &personal_number)
   {
@@ -110,26 +88,16 @@ public:
 int main()
 {
   // SSL Configuration for BankID
-  // Test environment (default)
   BankID::SSLConfig test_ssl_config(
       BankID::Environment::TEST,
       "certs/FPTestcert5_20240610.p12", // P12 certificate file
       "qwerty123"                       // P12 passphrase
   );
 
-  // Verify certificate files exist
-  if (!file_exists(test_ssl_config.p12_file_path))
+  if (!test_ssl_config.validate())
   {
-    std::cerr << "Warning: P12 certificate file not found: " << test_ssl_config.p12_file_path << std::endl;
-    std::cerr << "Please ensure the BankID certificate is placed in the certs/ directory" << std::endl;
-    return 0;
-  }
-
-  if (!file_exists(test_ssl_config.ca_file_path))
-  {
-    std::cerr << "Warning: CA certificate file not found: " << test_ssl_config.ca_file_path << std::endl;
-    std::cerr << "Please ensure the CA certificate is placed in the certs/ directory" << std::endl;
-    return 0;
+    std::cout << "SSL configuration validation failed. Exiting." << std::endl;
+    return 1;
   }
 
   // Create BankID configuration for your project
@@ -139,47 +107,9 @@ int main()
       test_ssl_config                              // SSL configuration
   );
 
-  // Example 2: Enhanced authentication with user visible data and SSL
-  // BankID::BankIDConfig enhanced_config(
-  //   "192.168.1.100", // endUserIp
-  //   "https://yourapp.example.com/auth/callback", // returnUrl
-  //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==", // base64 encoded user visible data
-  //   true, // returnRisk
-  //   test_ssl_config // SSL configuration
-  // );
-
-  // Example 3: App-based authentication with SSL
-  // BankID::AppConfig app_config{
-  //   "com.yourcompany.yourapp", // appIdentifier
-  //   "iOS 17.1", // deviceOS
-  //   "iPhone15,2", // deviceModelName
-  //   "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456" // deviceIdentifier
-  // };
-  // BankID::BankIDConfig app_config_bankid(
-  //   "192.168.1.100",
-  //   "https://yourapp.example.com/auth/callback",
-  //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==",
-  //   app_config,
-  //   true,
-  //   test_ssl_config
-  // );
-
-  // Example 4: Web-based authentication with SSL
-  // BankID::WebConfig web_config{
-  //   "yourapp.example.com", // referringDomain
-  //   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", // userAgent
-  //   "w1x2y3z4a5b6c7d8e9f0123456789012345678901234567890abcdef123456" // deviceIdentifier
-  // };
-  // BankID::BankIDConfig web_config_bankid(
-  //   "192.168.1.100",
-  //   "https://yourapp.example.com/auth/callback",
-  //   "VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IHRvIGJlIHNpZ25lZA==",
-  //   web_config,
-  //   true,
-  //   test_ssl_config
-  // );
-
+  // Create your BankID server instance
   BankIDServer bankid_server(simple_config);
+
   crow::SimpleApp app;
 
   // GET /init endpoint

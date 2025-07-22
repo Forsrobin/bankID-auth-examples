@@ -8,8 +8,8 @@ namespace BankID
   // BankIDConfig constructor implementations
 
   // 1. Simple authentication constructor
-  BankIDConfig::BankIDConfig(const std::string &endUserIp, const std::string &returnUrl, 
-                             const SSLConfig& sslConfig)
+  BankIDConfig::BankIDConfig(const std::string &endUserIp, const std::string &returnUrl,
+                             const SSLConfig &sslConfig)
       : m_endUserIp(endUserIp), m_returnUrl(returnUrl), m_returnRisk(false), m_sslConfig(sslConfig)
   {
     std::cout << "BankID Config: Simple authentication configuration created" << std::endl;
@@ -23,7 +23,7 @@ namespace BankID
   // 2. Authentication with user visible data and risk
   BankIDConfig::BankIDConfig(const std::string &endUserIp, const std::string &returnUrl,
                              const std::string &userVisibleData, bool returnRisk,
-                             const SSLConfig& sslConfig)
+                             const SSLConfig &sslConfig)
       : m_endUserIp(endUserIp), m_returnUrl(returnUrl),
         m_userVisibleData(userVisibleData), m_returnRisk(returnRisk), m_sslConfig(sslConfig)
   {
@@ -40,7 +40,7 @@ namespace BankID
   // 3. App-based authentication constructor
   BankIDConfig::BankIDConfig(const std::string &endUserIp, const std::string &returnUrl,
                              const std::string &userVisibleData, const AppConfig &appConfig,
-                             bool returnRisk, const SSLConfig& sslConfig)
+                             bool returnRisk, const SSLConfig &sslConfig)
       : m_endUserIp(endUserIp), m_returnUrl(returnUrl),
         m_userVisibleData(userVisibleData), m_returnRisk(returnRisk), m_appConfig(appConfig), m_sslConfig(sslConfig)
   {
@@ -62,7 +62,7 @@ namespace BankID
   // 4. Web-based authentication constructor
   BankIDConfig::BankIDConfig(const std::string &endUserIp, const std::string &returnUrl,
                              const std::string &userVisibleData, const WebConfig &webConfig,
-                             bool returnRisk, const SSLConfig& sslConfig)
+                             bool returnRisk, const SSLConfig &sslConfig)
       : m_endUserIp(endUserIp), m_returnUrl(returnUrl),
         m_userVisibleData(userVisibleData), m_returnRisk(returnRisk), m_webConfig(webConfig), m_sslConfig(sslConfig)
   {
@@ -83,71 +83,19 @@ namespace BankID
   // New functions using BankIDConfig
   bool Initialize(const BankIDConfig &config)
   {
-    std::cout << "BankID Library: Initializing with configuration..." << std::endl;
-    std::cout << "  Configuration type: ";
-
-    if (config.getAppConfig().has_value())
-    {
-      std::cout << "App-based" << std::endl;
-    }
-    else if (config.getWebConfig().has_value())
-    {
-      std::cout << "Web-based" << std::endl;
-    }
-    else if (config.getUserVisibleData().has_value())
-    {
-      std::cout << "Enhanced" << std::endl;
-    }
-    else
-    {
-      std::cout << "Simple" << std::endl;
-    }
-
-    // Add your BankID initialization logic here based on config
+    std::cout << "BankID Library: Initializing" << config.getEndUserIp() << std::endl;
     return true;
   }
 
   std::string StartAuthentication(const BankIDConfig &config)
   {
-    std::cout << "BankID Library: Starting authentication with configuration..." << std::endl;
-    std::cout << "  End User IP: " << config.getEndUserIp() << std::endl;
-    std::cout << "  Return URL: " << config.getReturnUrl() << std::endl;
-
-    if (config.getUserVisibleData().has_value())
-    {
-      std::cout << "  User Visible Data: " << config.getUserVisibleData().value() << std::endl;
-    }
-
-    if (config.getRequirement().has_value() && config.getRequirement()->personalNumber.has_value())
-    {
-      std::cout << "  Personal Number Requirement: " << config.getRequirement()->personalNumber.value() << std::endl;
-    }
-
-    // Add your BankID authentication logic here based on config
-    // For now, return a mock token
-    return "config_auth_token_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                     std::chrono::system_clock::now().time_since_epoch())
-                                                     .count());
+    std::cout << "BankID Library: Starting authentication..." << config.getEndUserIp() << std::endl;
+    return "config_auth_token_";
   }
 
   std::string CheckAuthenticationStatus(const std::string &token, const BankIDConfig &config)
   {
-    std::cout << "BankID Library: Checking status for token with configuration: " << token << std::endl;
-    std::cout << "  End User IP: " << config.getEndUserIp() << std::endl;
-
-    if (config.getRequirement().has_value() && config.getRequirement()->personalNumber.has_value())
-    {
-      std::cout << "  Personal Number Requirement: " << config.getRequirement()->personalNumber.value() << std::endl;
-    }
-
-    // Add your BankID status checking logic here based on config
-    // For now, return a mock status
+    std::cout << "BankID Library: Checking authentication status for token: " << token << " with End User IP: " << config.getEndUserIp() << std::endl;
     return "COMPLETED";
-  }
-
-  void Shutdown()
-  {
-    std::cout << "BankID Library: Shutting down..." << std::endl;
-    // Add your BankID shutdown logic here
   }
 }

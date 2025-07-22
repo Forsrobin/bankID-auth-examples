@@ -5,10 +5,7 @@
       "label": "Configure Static Library (Debug)",
       "type": "shell",
       "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
-      "args": [
-        "--preset",
-        "vs2022-deb"
-      ],
+      "args": ["--preset", "vs2022-deb"],
       "group": "build",
       "problemMatcher": []
     },
@@ -16,26 +13,16 @@
       "label": "Build Static Library (Debug)",
       "type": "shell",
       "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
-      "args": [
-        "--build",
-        "build/vs2022-deb",
-        "--config",
-        "Debug"
-      ],
+      "args": ["--build", "build/vs2022-deb", "--config", "Debug"],
       "group": "build",
-      "problemMatcher": [
-        "$msCompile"
-      ],
+      "problemMatcher": ["$msCompile"],
       "dependsOn": "Configure Static Library (Debug)"
     },
     {
       "label": "Configure Shared Library (Debug)",
       "type": "shell",
       "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
-      "args": [
-        "--preset",
-        "vs2022-deb-shared"
-      ],
+      "args": ["--preset", "vs2022-deb-shared"],
       "group": "build",
       "problemMatcher": []
     },
@@ -43,16 +30,9 @@
       "label": "Build Shared Library (Debug)",
       "type": "shell",
       "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
-      "args": [
-        "--build",
-        "build/vs2022-deb-shared",
-        "--config",
-        "Debug"
-      ],
+      "args": ["--build", "build/vs2022-deb-shared", "--config", "Debug"],
       "group": "build",
-      "problemMatcher": [
-        "$msCompile"
-      ],
+      "problemMatcher": ["$msCompile"],
       "dependsOn": "Configure Shared Library (Debug)"
     },
     {
@@ -66,8 +46,11 @@
     {
       "label": "Run Server (Shared)",
       "type": "shell",
-      "command": "build/vs2022-deb-shared/server/Debug/bankid_server.exe",
+      "command": "./bankid_server.exe",
       "group": "test",
+      "options": {
+        "cwd": "${workspaceFolder}/build/vs2022-deb-shared/server/Debug"
+      },
       // "dependsOn": "Build Shared Library (Debug)",
       "isBackground": true
     }
