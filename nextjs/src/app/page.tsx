@@ -1,18 +1,25 @@
+'use client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, Hash, LogOut, Shield, User } from 'lucide-react'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
+import { useUserContext } from '@/contexts/UserContext'
+import { deleteCookie } from 'cookies-next'
+import { LogOut, Shield, User } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
-const logout = async () => {
-  'use server'
-  const cookieStore = await cookies()
-  cookieStore.delete('accessToken')
-  redirect('/auth')
-}
+export default function Home() {
+  const { user } = useUserContext()
+  const router = useRouter()
 
-export default async function Home() {
+  const logout = async () => {
+    await deleteCookie('accessToken')
+    router.push('/auth')
+  }
+
+  if (!user) {
+    logout()
+  }
+
   return (
     <div className='min-h-screen bg-gray-50 p-20'>
       <div className='mx-auto max-w-2xl space-y-6'>
@@ -37,25 +44,19 @@ export default async function Home() {
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <div className='space-y-2'>
                 <label className='text-sm font-medium text-gray-600'>Personnummer</label>
-                <div className='p-3 bg-gray-100 rounded-md font-mono'>198001011234</div>
+                <div className='p-3 bg-gray-100 rounded-md font-mono'>{user?.personalNumber}</div>
               </div>
               <div className='space-y-2'>
                 <label className='text-sm font-medium text-gray-600'>Fullständigt namn</label>
-                <div className='p-3 bg-gray-100 rounded-md'>Anna Andersson</div>
+                <div className='p-3 bg-gray-100 rounded-md'>{user?.name}</div>
               </div>
               <div className='space-y-2'>
-                <label className='text-sm font-medium text-gray-600 flex items-center gap-1'>
-                  <Calendar className='h-4 w-4' />
-                  Inloggningstid
-                </label>
-                <div className='p-3 bg-gray-100 rounded-md font-mono'>2025-01-21 10:15:24</div>
+                <label className='text-sm font-medium text-gray-600'>Förnamn</label>
+                <div className='p-3 bg-gray-100 rounded-md'>{user?.givenName}</div>
               </div>
               <div className='space-y-2'>
-                <label className='text-sm font-medium text-gray-600 flex items-center gap-1'>
-                  <Hash className='h-4 w-4' />
-                  Sessions-ID
-                </label>
-                <div className='p-3 bg-gray-100 rounded-md font-mono text-sm'>abc123def456</div>
+                <label className='text-sm font-medium text-gray-600'>Efternamn</label>
+                <div className='p-3 bg-gray-100 rounded-md'>{user?.surname}</div>
               </div>
             </div>
           </CardContent>
@@ -86,14 +87,12 @@ export default async function Home() {
         </Card>
 
         {/* Logout Button */}
-        <form action={logout} className='mt-6'>
-          <div className='text-center'>
-            <Button variant='outline' size='lg' className='gap-2 bg-transparent'>
-              <LogOut className='h-4 w-4' />
-              Logga ut
-            </Button>
-          </div>
-        </form>
+        <div className='text-center'>
+          <Button onClick={logout} variant='outline' size='lg' className='gap-2 bg-transparent'>
+            <LogOut className='h-4 w-4' />
+            Logga ut
+          </Button>
+        </div>
       </div>
     </div>
   )

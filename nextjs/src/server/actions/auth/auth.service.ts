@@ -25,7 +25,6 @@ const authService = {
         authCountdown: AUTH_TIMEOUT,
       }
     } catch (error) {
-      console.error('Error initializing auth:', error)
       throw new Error('Failed to initialize auth')
     }
   },
@@ -38,12 +37,10 @@ const authService = {
       qrCode: null,
       status: 'failed',
       token: null,
+      user: null,
     }
 
-    if (!qrCacheEntry) {
-      console.log('No QR code found in cache for orderRef:', orderRef)
-      return invalid
-    }
+    if (!qrCacheEntry) return invalid
 
     const resp = await bankIdClient.collect({ orderRef })
 
@@ -57,6 +54,7 @@ const authService = {
           qrCode: null,
           status: resp.status,
           token: accessToken,
+          user: resp.completionData.user,
         }
       } catch (error) {
         return invalid
@@ -79,6 +77,7 @@ const authService = {
           orderRef: newOrderRef,
           qrCode: newOrderFirstQrCode,
           token: null,
+          user: null,
         }
       }
 
@@ -96,6 +95,7 @@ const authService = {
       status: 'qrCode',
       orderRef,
       token: null,
+      user: null,
     }
   },
 

@@ -4,109 +4,59 @@ import { BankIDModal } from '@/components/BankIdModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useCountdown } from '@/hooks/useTimeout'
-import type { AuthState } from '@/lib/types/auth'
+import { useAuthStateMachine } from '@/hooks/useAuthStateMachine'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { setCookie } from 'cookies-next'
 import { Shield } from 'lucide-react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { InitAuthResponse } from '../api/auth/init/route'
 import type { PoolAuthResponse } from '../api/auth/poll/route'
 
 export default function Auth() {
   const [showBankIDModal, setShowBankIDModal] = useState(false)
-  const [qrCode, setQrCode] = useState<string | null>(null)
-  const [authState, setAuthState] = useState<AuthState>('pending')
-  const [authCountdown, setAuthCountdown] = useState<number>(0)
-  const [orderRef, setOrderRef] = useState<string | null>(null)
+  const { state, actions } = useAuthStateMachine()
 
   // Track the countdown timer
-  const countdown = useCountdown(authCountdown, () => {
-    setAuthState('failed')
-    resetAuthState()
+  const countdown = useCountdown(state.authCountdown, () => {
+    actions.reset() // This will set status to 'failed' and clear states
   })
 
-  const router = useRouter()
-
-  // Equivalent to trpc.auth.pollAuth.useQuery
+  // Poll auth status
   const { data: pollAuthData } = useQuery({
-    queryKey: ['pollAuth'],
+    queryKey: ['pollAuth', state.orderRef],
     queryFn: async () => {
-      const res = await fetch(`/api/auth/poll?orderRef=${orderRef}`)
+      const res = await fetch(`/api/auth/poll?orderRef=${state.orderRef}`)
       if (!res.ok) throw new Error('Failed to poll auth status')
-      const data = (await res.json()) as PoolAuthResponse
-      return data
+      return (await res.json()) as PoolAuthResponse
     },
-    enabled: orderRef !== null,
+    enabled: state.orderRef !== null,
     refetchInterval: 1000,
     refetchOnWindowFocus: false,
   })
 
-  // Equivalent to trpc.auth.login.useMutation
+  // Initialize auth
   const authMutation = useMutation({
     mutationFn: async () => {
+      await fetch(`/api/auth/poll`) // This is just to trigger the initial state
       const res = await fetch('/api/auth/init')
       if (!res.ok) throw new Error('Failed to init auth')
-      const data = (await res.json()) as InitAuthResponse
-      return data
+      return (await res.json()) as InitAuthResponse
     },
     onSuccess: (data) => {
-      setAuthState('qr-code')
-      setOrderRef(data.orderRef)
-      setAuthCountdown(data.authCountdown)
+      actions.initAuth(data.orderRef, data.authCountdown)
     },
   })
 
+  // Handle poll data changes
   useEffect(() => {
-    if (!pollAuthData) return
-
-    switch (pollAuthData.status) {
-      case 'newOrderRef':
-        if (pollAuthData.orderRef) setOrderRef(pollAuthData.orderRef)
-        if (pollAuthData.qrCode) setQrCode(pollAuthData.qrCode)
-        break
-      case 'qrCode':
-        if (authState !== 'qr-code') setAuthState('qr-code')
-        if (pollAuthData.qrCode) setQrCode(pollAuthData.qrCode)
-        break
-      case 'complete':
-        // Create a access token and set it in cookies
-        // WARNING: This is a simplified example, in production you should handle this securely
-        // using refresh tokens
-        setCookie('accessToken', pollAuthData.token, {
-          maxAge: 60 * 60 * 24 * 30,
-          expires: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000),
-        })
-        setAuthState('success')
-        clearStates()
-        setTimeout(() => {
-          return router.push('/')
-        }, 1000)
-        break
-      case 'failed':
-        setAuthState('failed')
-        clearStates()
-        break
+    if (pollAuthData) {
+      actions.handlePollData(pollAuthData)
     }
-  }, [authState, pollAuthData, router])
-
-  const clearStates = () => {
-    setQrCode(null)
-    setOrderRef(null)
-    setAuthCountdown(0)
-  }
-
-  const resetAuthState = () => {
-    setAuthState('loading')
-    setQrCode(null)
-    setOrderRef(null)
-    setAuthCountdown(0)
-  }
+  }, [pollAuthData])
 
   const handleBankIDLogin = () => {
     setShowBankIDModal(true)
-    resetAuthState()
+    actions.reset()
     authMutation.mutate()
   }
 
@@ -116,7 +66,7 @@ export default function Auth() {
   }
 
   const cancelPolling = () => {
-    resetAuthState()
+    actions.reset()
     setShowBankIDModal(false)
     authMutation.reset()
   }
@@ -190,11 +140,13 @@ export default function Auth() {
       </div>
 
       <BankIDModal
-        setAuthState={setAuthState}
-        authState={authState}
+        setAuthState={(state) => {
+          if (state === 'failed') actions.reset()
+        }}
+        authState={state.status}
         isOpen={showBankIDModal}
         cancelPolling={cancelPolling}
-        qrCode={qrCode}
+        qrCode={state.qrCode}
         authCountdown={countdown}
         retryLogin={retryLogin}
       />

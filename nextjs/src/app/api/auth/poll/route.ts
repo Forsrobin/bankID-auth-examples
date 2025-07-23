@@ -1,4 +1,5 @@
 import authService from '@/server/actions/auth/auth.service'
+import type { CompletionDataV6 } from 'bankid'
 import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
@@ -8,6 +9,7 @@ export type PoolAuthResponse = {
   qrCode: string | null
   orderRef: string | null
   token: string | null
+  user: CompletionDataV6['user'] | null
 }
 
 export async function GET(request: Request) {
