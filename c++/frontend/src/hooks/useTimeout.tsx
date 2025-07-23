@@ -10,10 +10,10 @@ export function useCountdown(start: number, onExpire: () => void) {
 
   useEffect(() => {
     if (countdown > 0) {
-      intervalRef.current = setInterval(() => {
+      intervalRef.current = window.setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
-            clearInterval(intervalRef.current!)
+            if (intervalRef.current) clearInterval(intervalRef.current)
             onExpire()
             return 0
           }
@@ -22,7 +22,9 @@ export function useCountdown(start: number, onExpire: () => void) {
       }, 1000)
     }
 
-    return () => clearInterval(intervalRef.current!)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [countdown, onExpire])
 
   return countdown
