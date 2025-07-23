@@ -1,7 +1,7 @@
 #pragma once
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "bankid/httplib.h"
+#include "httplib.h"
 #include <string>
 #include <optional>
 #include <filesystem>
@@ -200,14 +200,14 @@ namespace BankID
 }
 
 // Include API endpoint configurations
-#include "bankid/api/auth.h"
-#include "bankid/api/sign.h"
-#include "bankid/api/payment.h"
-#include "bankid/api/phone.auth.h"
-#include "bankid/api/phone.sign.h"
-#include "bankid/api/other.payment.h"
-#include "bankid/api/collect.h"
-#include "bankid/api/cancel.h"
+#include "api/auth.h"
+#include "api/sign.h"
+#include "api/payment.h"
+#include "api/phone.auth.h"
+#include "api/phone.sign.h"
+#include "api/other.payment.h"
+#include "api/collect.h"
+#include "api/cancel.h"
 
 namespace BankID
 {

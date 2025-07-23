@@ -1,4 +1,4 @@
-#include "bankid/bankid.h"
+#include "bankid.h"
 
 namespace BankID
 {
