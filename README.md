@@ -1,6 +1,7 @@
 <img src="./assets/images/bankid.png" alt="BankID Logo" width="120" />
 
-# BankID Authentication Examples
+# Open BankID 
+### BankID Authentication Examples and Tools
 
 This repository contains multiple examples of how to implement **BankID authentication** in different programming languages and frameworks. The goal is to provide simple, self-contained authentication flows following [BankID's official guidelines](https://www.bankid.com/rp-info) and best practices.
 
