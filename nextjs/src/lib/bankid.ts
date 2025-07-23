@@ -11,7 +11,7 @@ export const bankIdClient = new BankIdClientV6({
   refreshInterval: 1000,
   qrEnabled: true,
   passphrase: 'qwerty123',
-  ca: 'src/certs/test.ca',
+  ca: env.NODE_ENV === 'production' ? 'src/certs/prod.ca' : 'src/certs/test.ca',
   pfx: 'src/certs/FPTestcert5_20240610.p12',
 })
 
