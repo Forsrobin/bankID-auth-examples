@@ -1,0 +1,59 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Configure Static Library (Debug)",
+      "type": "shell",
+      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
+      "args": ["--preset", "vs2022-deb"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Static Library (Debug)",
+      "type": "shell",
+      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
+      "args": ["--build", "build/vs2022-deb", "--config", "Debug"],
+      "group": "build",
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "Configure Static Library (Debug)"
+    },
+    {
+      "label": "Configure Shared Library (Debug)",
+      "type": "shell",
+      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
+      "args": ["--preset", "vs2022-deb-shared"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Shared Library (Debug)",
+      "type": "shell",
+      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
+      "args": ["--build", "build/vs2022-deb-shared", "--config", "Debug"],
+      "group": "build",
+      "problemMatcher": ["$msCompile"],
+      "dependsOn": "Configure Shared Library (Debug)"
+    },
+    {
+      "label": "Run Server (Static)",
+      "type": "shell",
+      "command": "./bankid_server.exe",
+      "options": {
+        "cwd": "${workspaceFolder}/build/vs2022-deb/server/Debug"
+      },
+      "group": "test",
+      "isBackground": true
+    },
+    {
+      "label": "Run Server (Shared)",
+      "type": "shell",
+      "command": "./bankid_server.exe",
+      "group": "test",
+      "options": {
+        "cwd": "${workspaceFolder}/build/vs2022-deb-shared/server/Debug"
+      },
+      "isBackground": true
+    }
+  ]
+}

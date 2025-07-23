@@ -1,14 +1,12 @@
-'use client'
 import BankIdImage from '@/assets/images/bankid.png'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle, Expand, Loader2, RefreshCw, Shrink, X } from 'lucide-react'
-import Image from 'next/image'
-import QRCode from 'react-qr-code'
-import { useEffect, useRef, useState } from 'react'
 import type { AuthState } from '@/lib/types/auth'
+import { AnimatePresence, motion } from 'framer-motion'
+import { CheckCircle, Loader2, RefreshCw, Shrink, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import QRCode from 'react-qr-code'
 import { Spinner } from './ui/spinner'
 
 interface BankIDModalProps {
@@ -21,7 +19,7 @@ interface BankIDModalProps {
   authCountdown: number
 }
 
-export const BankIDModal = ({ isOpen, cancelPolling, qrCode, authState, setAuthState, retryLogin, authCountdown }: BankIDModalProps) => {
+export const BankIDModal = ({ isOpen, cancelPolling, qrCode, authState, retryLogin, authCountdown }: BankIDModalProps) => {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showExtendButton, setShowExtendButton] = useState(false)
   const [screenReaderCountdown, setScreenReaderCountdown] = useState('')
@@ -147,7 +145,7 @@ export const BankIDModal = ({ isOpen, cancelPolling, qrCode, authState, setAuthS
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
             <DialogTitle className='flex items-center space-x-4'>
-              <Image src={BankIdImage} alt='BankID Logo' width={100} height={100} className='h-8 w-auto' />
+              <img src={BankIdImage} alt='BankID Logo' width={100} height={100} className='h-8 w-auto' />
               <span>BankID-autentisering</span>
             </DialogTitle>
           </DialogHeader>
