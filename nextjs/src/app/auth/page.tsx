@@ -65,18 +65,15 @@ export default function Auth() {
       case 'newOrderRef':
         if (pollAuthData.orderRef) setOrderRef(pollAuthData.orderRef)
         if (pollAuthData.qrCode) setQrCode(pollAuthData.qrCode)
-
         break
       case 'qrCode':
         if (authState !== 'qr-code') setAuthState('qr-code')
-
         if (pollAuthData.qrCode) setQrCode(pollAuthData.qrCode)
-
         break
       case 'complete':
         // Create a access token and set it in cookies
         // WARNING: This is a simplified example, in production you should handle this securely
-        // using refresh tokens or similar mechanisms
+        // using refresh tokens
         setCookie('accessToken', pollAuthData.token, {
           maxAge: 60 * 60 * 24 * 30,
           expires: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000),
