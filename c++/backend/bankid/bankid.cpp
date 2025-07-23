@@ -4,7 +4,7 @@ namespace BankID
 {
   // New Session implementation using SSLConfig only
   Session::Session(const SSLConfig &sslConfig)
-      : m_sslConfig(sslConfig), m_initialized(false), m_current_token("")
+      : m_sslConfig(sslConfig), m_initialized(false)
   {
     std::cout << "BankID Session: Creating session with SSL config" << std::endl;
     m_initialized = initialize();
@@ -32,13 +32,10 @@ namespace BankID
 
     // Set CA certificate for server verification
     this->cli->set_ca_cert_path(m_sslConfig.ca_file_path.c_str());
-
     this->cli->enable_server_certificate_verification(true);
     this->cli->enable_server_hostname_verification(m_sslConfig.environment == Environment::PRODUCTION);
-
-    // Set connection timeout (optional)
-    this->cli->set_connection_timeout(30); // 30 seconds
-    this->cli->set_read_timeout(30);       // 30 seconds
+    this->cli->set_connection_timeout(30);
+    this->cli->set_read_timeout(30);
 
     std::cout << "BankID Session: Session initialized successfully" << std::endl;
     return true;
@@ -54,7 +51,7 @@ namespace BankID
     {
       std::cout << "BankID Session: Session not initialized" << std::endl;
       return std::unexpected(BankID::AuthError{
-          500, // Internal error status
+          500,
           BankID::BankIdErrorCode::NOT_INITIALIZED, "Session not initialized"});
     }
 

@@ -35,7 +35,7 @@ namespace BankID::API
     explicit AuthConfig(const std::string &endUserIp) : m_endUserIp(endUserIp) {}
 
     // Static factory methods
-    static AuthConfig createSimple(const std::string &endUserIp)
+    static AuthConfig create(const std::string &endUserIp)
     {
       return AuthConfig(endUserIp);
     }

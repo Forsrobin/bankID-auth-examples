@@ -37,7 +37,7 @@ namespace BankID::API
         : m_endUserIp(endUserIp), m_userVisibleData(userVisibleData) {}
 
     // Static factory methods
-    static SignConfig createSimple(const std::string &endUserIp, const std::string &userVisibleData)
+    static SignConfig create(const std::string &endUserIp, const std::string &userVisibleData)
     {
       return SignConfig(endUserIp, userVisibleData);
     }

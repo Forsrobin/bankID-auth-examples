@@ -38,7 +38,7 @@ int main()
         std::cout << "GET /init - Starting authentication" << std::endl;
         
         // Create auth config on-demand for this specific request
-        auto authConfig = BankID::API::AuthConfig::createSimple("172.0.0.1")
+        auto authConfig = BankID::API::AuthConfig("172.0.0.1")
             .setReturnUrl("https://yourapp.example.com/auth/callback")
             .setReturnRisk(true)
             .setUserVisibleData("VEhJUyBJUyBBIFRFU1Q=");
@@ -50,6 +50,8 @@ int main()
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
             "iPhone15,2"
         };
+        
+        // Applying app config to authConfig
         authConfig.setAppConfig(app_config);
 
         auto response = bankid_session.auth(authConfig);
@@ -78,17 +80,12 @@ int main()
    {
         std::cout << "GET /poll - Checking authentication status" << std::endl;
         
-        std::string current_token = bankid_session.getCurrentToken();
-        if (current_token.empty())
-        {
-          return crow::response(400, "No active authentication session");
-        }
-
+ 
 
         // Simple JSON response without external JSON library
         std::string json_response = "{"
                                     "\"status\":\"success\","
-                                    "\"token\":\"" + current_token + "\","
+                                    "\"token\":\"current_token\","
                                     "}";
 
         crow::response resp(200, json_response);

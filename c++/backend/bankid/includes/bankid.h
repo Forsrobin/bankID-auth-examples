@@ -218,9 +218,8 @@ namespace BankID
   {
   private:
     SSLConfig m_sslConfig;
-    bool m_initialized;
-    std::string m_current_token;
     httplib::SSLClient *cli;
+    bool m_initialized;
 
   public:
     Session(const SSLConfig &sslConfig);
@@ -283,9 +282,8 @@ namespace BankID
     const std::expected<BankID::AuthResponse, BankID::AuthError> cancel(const BankID::API::CancelConfig &cancelConfig);
 
     // Get current token
-    const std::string &getCurrentToken() const { return m_current_token; }
-    const bool initialize();
     bool isInitialized() const { return m_initialized; }
+    const bool initialize();
     const SSLConfig &getSSLConfig() const { return m_sslConfig; }
 
     template <typename T>

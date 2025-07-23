@@ -41,7 +41,7 @@ namespace BankID::API
         : m_personalNumber(personalNumber), m_userVisibleTransaction(userVisibleTransaction) {}
 
     // Static factory methods
-    static OtherPaymentConfig createSimple(const std::string &personalNumber,
+    static OtherPaymentConfig create(const std::string &personalNumber,
                                            const UserVisibleTransaction &transaction)
     {
       return OtherPaymentConfig(personalNumber, transaction);

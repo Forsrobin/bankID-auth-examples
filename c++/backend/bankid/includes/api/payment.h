@@ -62,7 +62,7 @@ namespace BankID::API
         : m_endUserIp(endUserIp), m_userVisibleTransaction(userVisibleTransaction) {}
 
     // Static factory methods
-    static PaymentConfig createSimple(const std::string &endUserIp, const UserVisibleTransaction &transaction)
+    static PaymentConfig create(const std::string &endUserIp, const UserVisibleTransaction &transaction)
     {
       return PaymentConfig(endUserIp, transaction);
     }
