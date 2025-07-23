@@ -1,18 +1,18 @@
 'use client'
+import BankIdLogo from '@/assets/images/bankid.png'
 import { BankIDModal } from '@/components/BankIdModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useCountdown } from '@/hooks/useTimeout'
 import type { AuthState } from '@/lib/types/auth'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { setCookie } from 'cookies-next'
 import { Shield } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
-import type { PoolAuthResponse } from '../api/auth/poll/route'
-import type { InitAuthResponse } from '../api/auth/init/route'
-import { useCountdown } from '@/hooks/useTimeout'
-import BankIdLogo from '@/assets/images/bankid.png'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import type { InitAuthResponse } from '../api/auth/init/route'
+import type { PoolAuthResponse } from '../api/auth/poll/route'
 
 export default function Auth() {
   const [showBankIDModal, setShowBankIDModal] = useState(false)
@@ -137,20 +137,20 @@ export default function Auth() {
                 <span className='block text-primary'>BankID</span>
                 Login
               </h2>
-              <p className='text-lg text-gray-600'>Simple demo of BankID login and authentication</p>
+              <p className='text-lg text-gray-600'>Simpelt demo av BankID-inloggning och autentisering med NextJS och bankid</p>
             </div>
 
             <div className='flex items-center justify-center'>
               <Card className='w-full max-w-md shadow-xl'>
                 <CardHeader className='space-y-1 text-center'>
-                  <CardTitle className='text-2xl font-bold'>Login</CardTitle>
-                  <CardDescription>Use your BankID to log in</CardDescription>
+                  <CardTitle className='text-2xl font-bold'>Logga in</CardTitle>
+                  <CardDescription>Öppna BankID-appen för att logga in</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-6'>
                   <div className='space-y-4'>
                     <Button isLoading={showBankIDModal} onClick={handleBankIDLogin} className='w-full bg-primary hover:bg-primary-/90' size='lg'>
                       <Shield className='mr-2 h-5 w-5' />
-                      Login with BankID
+                      Logga in med BankID
                     </Button>
 
                     <div className='relative'>
@@ -164,10 +164,23 @@ export default function Auth() {
 
                     <div className='rounded-lg bg-blue-50 p-4'>
                       <div className='flex items-start space-x-3'>
-                        <Shield className='h-5 w-5 text-primary mt-0.5' />
-                        <div className='text-sm'>
-                          <p className='font-medium text-primary'>Test login</p>
-                          <p className='text-primary'>This is a demo that simulates BankID login using their public test API and certificates.</p>
+                        <div className='text-sm space-y-2'>
+                          <div className={`flex items-center gap-1`}>
+                            <Shield size={16} className='text-primary mt-0.5' />
+                            <p className='font-medium text-primary'>Test login</p>
+                          </div>
+                          <p className='text-primary/80'>
+                            Detta använder BankID test certifikat och för att kunna logga in med BankID måste du ha ett test BankID konto uppsatt. För
+                            att skapa ett testkonto, läs mer här:
+                          </p>
+                          <a
+                            href='https://developers.bankid.com/test-portal/bankid-for-test'
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='font-medium text-primary underline'
+                          >
+                            Sätt upp testkonto
+                          </a>
                         </div>
                       </div>
                     </div>
