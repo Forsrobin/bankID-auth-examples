@@ -9,8 +9,8 @@ const roboto = Roboto_Flex({
 })
 
 export const metadata: Metadata = {
-  title: 'BankID with c++ backend',
-  description: 'A BankID authentication example using React and C++',
+  title: 'BankID - NextJS',
+  description: 'A BankID authentication example using Next.js app router',
 }
 
 export default function RootLayout({

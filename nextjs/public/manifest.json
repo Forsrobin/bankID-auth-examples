@@ -1,6 +1,6 @@
 {
-  "short_name": "BankID with c++ backend",
-  "name": "BankID with c++ backend",
+  "short_name": "BankID - NextJS",
+  "name": "BankID - NextJS",
   "icons": [
     {
       "src": "favicon.ico",
