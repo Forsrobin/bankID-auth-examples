@@ -79,8 +79,6 @@ int main()
   ([&bankid_session](const crow::request &)
    {
         std::cout << "GET /poll - Checking authentication status" << std::endl;
-        
- 
 
         // Simple JSON response without external JSON library
         std::string json_response = "{"
