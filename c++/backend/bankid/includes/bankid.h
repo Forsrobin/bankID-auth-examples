@@ -61,7 +61,7 @@ namespace BankID
     std::optional<bool> pinCode;
   };
 
-  struct DefaultResponse
+  struct BANKID_API DefaultResponse
   {
     int status;
   };
@@ -98,6 +98,7 @@ namespace BankID
     j.at("qrStartToken").get_to(r.qrStartToken);
     j.at("qrStartSecret").get_to(r.qrStartSecret);
   }
+
   enum class BANKID_API Environment
   {
     TEST,
@@ -137,15 +138,16 @@ namespace BankID
   struct BANKID_API SSLConfig
   {
     Environment environment = Environment::TEST;
-    std::string ca_file_path = "certs/test.ca";          // Will be set based on environment
-    std::string pem_cert_path = "certs/bankid_cert.pem"; // PEM certificate for Crow
-    std::string pem_key_path = "certs/bankid_key.pem";   // PEM private key for Crow
+    std::string caFilePath = "certs/test.ca";          // Will be set based on environment
+    std::string pemCertPath = "certs/bankid_cert.pem"; // PEM certificate for Crow
+    std::string pemKeyPath = "certs/bankid_key.pem";   // PEM private key for Crow
 
     /**
      * Constructor for SSLConfig
      * @param env Environment type (TEST or PRODUCTION)
-     * @param pem_cert_path Path to the PEM certificate file
-     * @param pem_key_path Path to the PEM private key file
+     * @param caFilePath Path to the CA file
+     * @param pemCertPath Path to the PEM certificate file
+     * @param pemKeyPath Path to the PEM private key file
      * @brief Initializes the SSL configuration with the specified environment and certificate paths.
      * If the environment is TEST, it sets the CA file path to "certs/test.ca".
      * If the environment is PRODUCTION, it sets the CA file path to "certs/production.ca".
@@ -153,18 +155,18 @@ namespace BankID
      * The .ca file is used for server verification and are provided by BankID so no need to generate it.
      */
     SSLConfig(Environment env = Environment::TEST,
-              const std::string &pem_cert_path = "certs/bankid_cert.pem",
-              const std::string &pem_key_path = "certs/bankid_key.pem")
-        : environment(env), pem_cert_path(pem_cert_path), pem_key_path(pem_key_path)
+              const std::string &_pemCertPath = "certs/bankid_cert.pem",
+              const std::string &_pemKeyPath = "certs/bankid_key.pem")
+        : environment(env), pemCertPath(_pemCertPath), pemKeyPath(_pemKeyPath)
     {
       std::cout << "BankID SSLConfig: Creating SSL configuration" << std::endl;
       if (environment == Environment::TEST)
       {
-        ca_file_path = "certs/test.ca";
+        caFilePath = "certs/test.ca";
       }
       else
       {
-        ca_file_path = "certs/production.ca";
+        caFilePath = "certs/production.ca";
       }
     }
 
@@ -177,25 +179,77 @@ namespace BankID
     bool validate() const
     {
       // Verify certificate files exist
-      if (!file_exists(this->pem_cert_path))
+      if (!file_exists(this->pemCertPath))
       {
-        std::cerr << "Certificate file does not exist: " << this->pem_cert_path << std::endl;
+        std::cerr << "Certificate file does not exist: " << this->pemCertPath << std::endl;
         return false;
       }
 
-      if (!file_exists(this->pem_key_path))
+      if (!file_exists(this->pemKeyPath))
       {
-        std::cerr << "Key file does not exist: " << this->pem_key_path << std::endl;
+        std::cerr << "Key file does not exist: " << this->pemKeyPath << std::endl;
         return false;
       }
-      if (!file_exists(this->ca_file_path))
+      if (!file_exists(this->caFilePath))
       {
-        std::cerr << "CA file does not exist: " << this->ca_file_path << std::endl;
+        std::cerr << "CA file does not exist: " << this->caFilePath << std::endl;
         return false;
       }
 
       return true;
     }
+  };
+
+  class BANKID_API QRGenerator
+  {
+  public:
+    QRGenerator(std::string qrStartToken, std::string qrStartSecret);
+
+    std::string getNextQRCode(); // Returns next valid QR string
+    bool isExpired() const;      // Returns true if 30s has passed
+
+  private:
+    std::string m_qr_start_token;
+    std::string m_qr_start_secret;
+    std::chrono::steady_clock::time_point m_creation_time;
+
+    int getElapsedSeconds() const;
+    std::string computeAuthCode(int seconds) const;
+  };
+
+  /**
+   * QRGeneratorCache class for caching QR code generators.
+   * Using a singleton pattern to manage QR code generators.
+   * Ensures only one shared cache exists throughout the application.
+   * 
+   * This class provides methods to add, get, and remove QR code generators
+   * based on order references. It also includes a cleanup loop to remove expired
+   * generators periodically.
+   */
+  class BANKID_API QRGeneratorCache
+  {
+  public:
+    static QRGeneratorCache &instance();
+
+    void add(const std::string &orderRef, const std::string &qrStartToken, const std::string &qrStartSecret);
+    std::shared_ptr<QRGenerator> get(const std::string &orderRef);
+    void remove(const std::string &orderRef);
+
+    void shutdown(); // Graceful stop
+
+  private:
+    QRGeneratorCache();
+    ~QRGeneratorCache();
+
+    void cleanupLoop();
+
+    std::unordered_map<std::string, std::shared_ptr<QRGenerator>> m_cache;
+    std::mutex m_cache_mutex;
+
+    std::thread cleaner_thread;
+    std::condition_variable m_cv;
+    std::mutex cv_mutex;
+    std::atomic<bool> m_running;
   };
 
 }
@@ -218,7 +272,7 @@ namespace BankID
   {
   private:
     SSLConfig m_sslConfig;
-    httplib::SSLClient *cli;
+    httplib::SSLClient *m_cli;
     bool m_initialized;
 
   public:
@@ -286,101 +340,6 @@ namespace BankID
     const bool initialize();
     const SSLConfig &getSSLConfig() const { return m_sslConfig; }
 
-    template <typename T>
-    std::expected<T, BankID::AuthError> validateStatusAndParse(
-        const httplib::Result &res,
-        const std::unordered_map<int, std::string> &customErrors = {})
-    {
-      if (!res)
-      {
-        return std::unexpected(AuthError{
-            0,
-            BankIdErrorCode::INTERNAL_ERROR,
-            "No response from server"});
-      }
-
-      // Success case
-      if (res->status == 200)
-      {
-        try
-        {
-          nlohmann::json j = nlohmann::json::parse(res->body);
-          T parsed = j.get<T>();
-          if constexpr (std::is_base_of_v<DefaultResponse, T>)
-          {
-            parsed.status = res->status;
-          }
-          return parsed;
-        }
-        catch (const std::exception &e)
-        {
-          return std::unexpected(AuthError{
-              res->status,
-              BankIdErrorCode::INVALID_PARAMETERS,
-              std::string("Failed to parse response: ") + e.what()});
-        }
-      }
-
-      // Custom error overrides
-      auto it = customErrors.find(res->status);
-      if (it != customErrors.end())
-      {
-        return std::unexpected(AuthError{
-            res->status,
-            BankIdErrorCode::INVALID_PARAMETERS, // Or let caller map their own code
-            it->second});
-      }
-
-      // Special case: status 400 with body (errorCode + details)
-      if (res->status == 400)
-      {
-        try
-        {
-          auto jsonBody = nlohmann::json::parse(res->body);
-          std::string details = jsonBody.at("details").get<std::string>();
-          std::string errorCode = jsonBody.at("errorCode").get<std::string>();
-          return std::unexpected(AuthError{
-              400,
-              BankIdErrorCode::INVALID_PARAMETERS,
-              errorCode + ": " + details});
-        }
-        catch (const std::exception &e)
-        {
-          return std::unexpected(AuthError{
-              400,
-              BankIdErrorCode::INVALID_PARAMETERS,
-              std::string("Failed to parse error response: ") + e.what()});
-        }
-      }
-
-      // Status code → BankIdErrorCode and message mapping
-      const static std::unordered_map<int, std::pair<BankIdErrorCode, std::string>> defaultErrors = {
-          {401, {BankIdErrorCode::UNAUTHORIZED, "You do not have access to the service."}},
-          {403, {BankIdErrorCode::UNAUTHORIZED, "You do not have access to the service."}},
-          {404, {BankIdErrorCode::NOT_FOUND, "An invalid URL path was used."}},
-          {405, {BankIdErrorCode::METHOD_NOT_ALLOWED, "Only HTTP method POST is allowed."}},
-          {408, {BankIdErrorCode::REQUEST_TIMEOUT, "Timeout while transmitting the request."}},
-          {415, {BankIdErrorCode::UNSUPPORTED_MEDIA_TYPE, "The type is missing or invalid."}},
-          {500, {BankIdErrorCode::INTERNAL_ERROR, "Internal technical error in the BankID system."}},
-          {503, {BankIdErrorCode::MAINTENANCE, "The service is temporarily unavailable."}},
-      };
-
-      auto defIt = defaultErrors.find(res->status);
-      if (defIt != defaultErrors.end())
-      {
-        return std::unexpected(AuthError{
-            res->status,
-            defIt->second.first,
-            defIt->second.second});
-      }
-
-      // Fallback for unknown codes
-      return std::unexpected(AuthError{
-          res->status,
-          BankIdErrorCode::INTERNAL_ERROR,
-          "Unhandled HTTP error"});
-    }
-
   private:
     /**
      * Generic method to make API calls
@@ -392,6 +351,14 @@ namespace BankID
     const std::expected<BankID::AuthResponse, BankID::AuthError> makeApiCall(
         const std::string &endpoint,
         const ConfigType &config);
+
+    /**
+     * Validate response status and parse JSON
+     */
+    template <typename T>
+    const std::expected<T, BankID::AuthError> validateStatusAndParse(
+        const httplib::Result &res,
+        const std::unordered_map<int, std::string> &customErrors = {});
   };
 
 }

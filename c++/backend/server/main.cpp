@@ -3,9 +3,17 @@
 #include <crow.h>
 #include <memory>
 #include <string>
+#include <csignal>
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
+
+void handleShutdown(int signal)
+{
+  std::cout << "Received shutdown signal (" << signal << "). Cleaning up..." << std::endl;
+  BankID::QRGeneratorCache::instance().shutdown();
+  std::_Exit(0);
+}
 
 int main()
 {
@@ -33,26 +41,13 @@ int main()
 
   // GET /init endpoint
   CROW_ROUTE(app, "/init")
-  ([&bankid_session](const crow::request &)
+  ([&bankid_session]()
    {
         std::cout << "GET /init - Starting authentication" << std::endl;
         
         // Create auth config on-demand for this specific request
         auto authConfig = BankID::API::AuthConfig("172.0.0.1")
-            .setReturnUrl("https://yourapp.example.com/auth/callback")
-            .setReturnRisk(true)
             .setUserVisibleData("VEhJUyBJUyBBIFRFU1Q=");
-        
-        // Optionally add app-specific config
-        BankID::AppConfig app_config{
-            "com.yourcompany.yourapp",
-            "iOS 17.1", 
-            "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
-            "iPhone15,2"
-        };
-        
-        // Applying app config to authConfig
-        authConfig.setAppConfig(app_config);
 
         auto response = bankid_session.auth(authConfig);
 
@@ -75,40 +70,43 @@ int main()
         return resp; });
 
   // GET /poll endpoint
-  CROW_ROUTE(app, "/poll")
-  ([&bankid_session](const crow::request &)
+  CROW_ROUTE(app, "/poll/<string>")
+  ([&bankid_session](std::string orderRef)
    {
-        std::cout << "GET /poll - Checking authentication status" << std::endl;
+     std::cout << "GET /poll - Checking authentication status" << std::endl;
+     std::cout << "Order Reference: " << orderRef << std::endl;
 
-        // Simple JSON response without external JSON library
-        std::string json_response = "{"
-                                    "\"status\":\"success\","
-                                    "\"token\":\"current_token\","
-                                    "}";
+     auto generator = BankID::QRGeneratorCache::instance().get(orderRef);
+     if (generator)
+     {
+      const auto isExpired = generator->isExpired();
+      std::cout << "QR Code generator is expired: " << (isExpired ? "Yes" : "No") << std::endl;
 
-        crow::response resp(200, json_response);
-        resp.add_header("Content-Type", "application/json");
-        return resp; });
+      std::string qrCode = generator->getNextQRCode();
+       std::cout << "QR Code: " << qrCode << std::endl;
+       json json_response;
+       json_response["status"] = "success";
+       json_response["qrCode"] = qrCode;
 
-  // GET /payment endpoint - Example of payment API usage
-  CROW_ROUTE(app, "/payment")
-  ([&bankid_session](const crow::request &)
+       crow::response resp(200, json_response.dump());
+       resp.add_header("Content-Type", "application/json");
+       return resp;
+     }
+     else
+     {
+       crow::response resp(404, "QR Code not found");
+       resp.add_header("Content-Type", "application/json");
+       return resp;
+     } });
+
+  CROW_ROUTE(app, "/cancel/<string>")
+  ([&bankid_session](std::string orderRef)
    {
-        std::cout << "GET /payment - Starting payment flow" << std::endl;
-        
-        // Create payment config on-demand for this specific request
-        auto paymentConfig = BankID::API::PaymentConfig::createCardPayment(
-            "172.0.0.1",          // endUserIp
-            "Test Merchant Inc.", // recipient name
-            "100,00",            // amount
-            "SEK"                // currency
-        )
-        .setReturnUrl("https://yourapp.example.com/payment/callback")
-        .setReturnRisk(true)
-        .setUserVisibleData("UGF5bWVudCBmb3IgdGVzdCBwdXJjaGFzZQ==") // base64 encoded
-        .setRiskFlags({"largeAmount", "newCustomer"});
+        auto cancelConfig = BankID::API::CancelConfig::create(
+            orderRef          // orderRef
+        );
 
-        auto response = bankid_session.payment(paymentConfig);
+        auto response = bankid_session.cancel(cancelConfig);
 
         if (!response)
         {
@@ -119,14 +117,22 @@ int main()
         // Simple JSON response using nlohmann::json
         json json_response;
         json_response["status"] = "success";
-        json_response["orderRef"] = response->orderRef;
-        json_response["autoStartToken"] = response->autoStartToken;
 
         crow::response resp(200, json_response.dump());
         resp.add_header("Content-Type", "application/json");
         return resp; });
 
   log_starting_server();
+
+  // Register cleanup handler to ensure graceful shutdown
+  std::atexit([]
+              {
+  std::cout << "Application is shutting down. Cleaning up QRGeneratorCache..." << std::endl;
+  BankID::QRGeneratorCache::instance().shutdown(); });
+
+  std::signal(SIGINT, handleShutdown);  // Ctrl+C
+  std::signal(SIGTERM, handleShutdown); // kill signal
+
   app.port(8080).multithreaded().run();
 
   return 0;
