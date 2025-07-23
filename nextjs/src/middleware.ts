@@ -17,15 +17,15 @@ function redirectToAuthAndClearCookies(request: NextRequest, debugLog?: string) 
 export async function middleware(request: NextRequest) {
   const accessToken = request.headers.get('Authorization')?.split(' ')[1] || request.cookies.get('accessToken')?.value
 
-  if (!accessToken) return redirectToAuthAndClearCookies(request, 'Ingen access token hittades i request headers eller cookies')
+  if (!accessToken) return redirectToAuthAndClearCookies(request, 'No access token found in request')
 
   const data = (await authService.decodeToken(accessToken)) as DecodedPayload | null
 
-  if (!data) return redirectToAuthAndClearCookies(request, 'Misslyckad access token')
+  if (!data) return redirectToAuthAndClearCookies(request, 'Failed to decode access token')
 
   const decodedAccessToken = await authService.verifyToken(accessToken)
 
-  if (decodedAccessToken instanceof Error) return redirectToAuthAndClearCookies(request, 'Ogiltig access token')
+  if (decodedAccessToken instanceof Error) return redirectToAuthAndClearCookies(request, 'Invalid access token')
 
   if (request.nextUrl.pathname.startsWith('/auth')) return NextResponse.redirect(new URL('/', request.url))
 

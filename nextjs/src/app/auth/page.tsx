@@ -84,20 +84,20 @@ export default function Auth() {
                 <span className='block text-primary'>BankID</span>
                 Login
               </h2>
-              <p className='text-lg text-gray-600'>Simpelt demo av BankID-inloggning och autentisering med NextJS och bankid</p>
+              <p className='text-lg text-center text-gray-600'>Simple login demo using BankID and Next.js</p>
             </div>
 
             <div className='flex items-center justify-center'>
               <Card className='w-full max-w-md shadow-xl'>
                 <CardHeader className='space-y-1 text-center'>
-                  <CardTitle className='text-2xl font-bold'>Logga in</CardTitle>
-                  <CardDescription>Öppna BankID-appen för att logga in</CardDescription>
+                  <CardTitle className='text-2xl font-bold'>Login</CardTitle>
+                  <CardDescription>Open the BankID app to log in</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-6'>
                   <div className='space-y-4'>
                     <Button isLoading={showBankIDModal} onClick={handleBankIDLogin} className='w-full bg-primary hover:bg-primary-/90' size='lg'>
                       <Shield className='mr-2 h-5 w-5' />
-                      Logga in med BankID
+                      Login with BankID
                     </Button>
 
                     <div className='relative'>
@@ -117,8 +117,8 @@ export default function Auth() {
                             <p className='font-medium text-primary'>Test login</p>
                           </div>
                           <p className='text-primary/80'>
-                            Detta använder BankID test certifikat och för att kunna logga in med BankID måste du ha ett test BankID konto uppsatt. För
-                            att skapa ett testkonto, läs mer här:
+                            This demo is using BankID test certificates and to log in with BankID you must have a test BankID account set up. To
+                            create a test account, read more here:
                           </p>
                           <a
                             href='https://developers.bankid.com/test-portal/bankid-for-test'
@@ -126,7 +126,7 @@ export default function Auth() {
                             rel='noopener noreferrer'
                             className='font-medium text-primary underline'
                           >
-                            Sätt upp testkonto
+                            Set up test account
                           </a>
                         </div>
                       </div>
