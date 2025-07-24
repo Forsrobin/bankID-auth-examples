@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../bankid.h"
+#include "responses.h"
 #include <string>
 #include <optional>
 #include <vector>
@@ -8,6 +9,30 @@
 namespace BankID::API
 {
 
+
+  enum BANKID_API CurrencyCode
+  {
+    EUR, // Euro
+    USD, // US Dollar
+    SEK, // Swedish Krona
+    NOK, // Norwegian Krone
+    DKK, // Danish Krone
+    GBP  // British Pound
+  };
+  
+  inline std::string currencyToString(CurrencyCode code)
+  {
+    switch (code)
+    {
+    case EUR: return "EUR";
+    case USD: return "USD";
+    case SEK: return "SEK";
+    case NOK: return "NOK";
+    case DKK: return "DKK";
+    case GBP: return "GBP";
+    default: return "UNKNOWN";
+    }
+  }
   /**
    * User visible transaction structures for payment APIs
    */
@@ -19,7 +44,7 @@ namespace BankID::API
   struct BANKID_API PaymentMoney
   {
     std::string amount;   // Required, max 48 chars, e.g. "100,00"
-    std::string currency; // Required, 3 chars, ISO 4217, e.g. "EUR"
+    CurrencyCode currency; // Required, 3 chars, ISO 4217, e.g. "EUR"
   };
 
   struct BANKID_API UserVisibleTransaction
@@ -85,7 +110,7 @@ namespace BankID::API
 
     // Helper factory for card payments
     static PaymentConfig createCardPayment(const std::string &endUserIp, const std::string &recipientName,
-                                           const std::string &amount, const std::string &currency)
+                                           const std::string &amount, const CurrencyCode &currency)
     {
       UserVisibleTransaction transaction;
       transaction.transactionType = "card";
@@ -189,7 +214,7 @@ namespace BankID::API
       {
         const auto &money = m_userVisibleTransaction.money.value();
         transactionJson["money"]["amount"] = money.amount;
-        transactionJson["money"]["currency"] = money.currency;
+        transactionJson["money"]["currency"] = currencyToString(money.currency);
       }
 
       if (m_userVisibleTransaction.riskWarning.has_value())
@@ -282,6 +307,9 @@ namespace BankID::API
 
       return j;
     }
+
+    // Response type for payment endpoint
+    using ResponseType = OrderResponse;
   };
 
 } // namespace BankID::API

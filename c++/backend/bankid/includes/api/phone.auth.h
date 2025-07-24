@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../bankid.h"
+#include "responses.h"
 #include <string>
 #include <optional>
 
@@ -148,6 +149,9 @@ namespace BankID::API
 
       return j;
     }
+
+    // Response type for phone auth endpoint
+    using ResponseType = LimitedResponse;
   };
 
 } // namespace BankID::API

@@ -42,44 +42,47 @@ namespace BankID
   }
 
   // Endpoint-specific implementations
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::auth(const BankID::API::AuthConfig &authConfig)
+  const std::expected<BankID::API::AuthConfig::ResponseType, BankID::AuthError> Session::auth(const BankID::API::AuthConfig &authConfig)
   {
     auto response = makeApiCall("/auth", authConfig);
-    BankID::QRGeneratorCache::instance().add(response->orderRef, response->qrStartToken, response->qrStartSecret);
+    if (response.has_value())
+    {
+      BankID::QRGeneratorCache::instance().add(response->orderRef, response->qrStartToken, response->qrStartSecret);
+    }
     return response;
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::sign(const BankID::API::SignConfig &signConfig)
+  const std::expected<BankID::API::SignConfig::ResponseType, BankID::AuthError> Session::sign(const BankID::API::SignConfig &signConfig)
   {
     return makeApiCall("/sign", signConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::payment(const BankID::API::PaymentConfig &paymentConfig)
+  const std::expected<BankID::API::PaymentConfig::ResponseType, BankID::AuthError> Session::payment(const BankID::API::PaymentConfig &paymentConfig)
   {
     return makeApiCall("/payment", paymentConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::phoneAuth(const BankID::API::PhoneAuthConfig &phoneAuthConfig)
+  const std::expected<BankID::API::PhoneAuthConfig::ResponseType, BankID::AuthError> Session::phoneAuth(const BankID::API::PhoneAuthConfig &phoneAuthConfig)
   {
     return makeApiCall("/phone/auth", phoneAuthConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::phoneSign(const BankID::API::PhoneSignConfig &phoneSignConfig)
+  const std::expected<BankID::API::PhoneSignConfig::ResponseType, BankID::AuthError> Session::phoneSign(const BankID::API::PhoneSignConfig &phoneSignConfig)
   {
     return makeApiCall("/phone/sign", phoneSignConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::otherPayment(const BankID::API::OtherPaymentConfig &otherPaymentConfig)
+  const std::expected<BankID::API::OtherPaymentConfig::ResponseType, BankID::AuthError> Session::otherPayment(const BankID::API::OtherPaymentConfig &otherPaymentConfig)
   {
     return makeApiCall("/other/payment", otherPaymentConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::collect(const BankID::API::CollectConfig &collectConfig)
+  const std::expected<BankID::API::CollectConfig::ResponseType, BankID::AuthError> Session::collect(const BankID::API::CollectConfig &collectConfig)
   {
     return makeApiCall("/collect", collectConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::cancel(const BankID::API::CancelConfig &cancelConfig)
+  const std::expected<BankID::API::CancelConfig::ResponseType, BankID::AuthError> Session::cancel(const BankID::API::CancelConfig &cancelConfig)
   {
     // Clean up any QR code generator associated with this orderRef
     QRGeneratorCache::instance().remove(cancelConfig.getOrderRef());
@@ -89,7 +92,7 @@ namespace BankID
 
   // Generic template implementation for making API calls
   template <typename ConfigType>
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::makeApiCall(
+  const std::expected<typename ConfigType::ResponseType, BankID::AuthError> Session::makeApiCall(
       const std::string &endpoint,
       const ConfigType &config)
   {
@@ -106,17 +109,11 @@ namespace BankID
     std::cout << "Payload: " << payload.dump(2) << std::endl;
 
     payload = payload.dump();
-
-    if (payload.empty())
-    {
-      payload = "{}";
-    }
-
     auto res = m_cli->Post(("/rp/v6.0" + endpoint).c_str(),
                            payload,
                            "application/json");
 
-    return validateStatusAndParse<BankID::AuthResponse>(res);
+    return validateStatusAndParse<typename ConfigType::ResponseType>(res);
   }
 
   template <typename T>
@@ -138,10 +135,11 @@ namespace BankID
       try
       {
         nlohmann::json j = nlohmann::json::parse(res->body);
-        T parsed = j.get<T>();
-        if constexpr (std::is_base_of_v<DefaultResponse, T>)
+        T parsed;
+        from_json(j, parsed);
+        if constexpr (std::is_base_of_v<BankID::API::DefaultResponse, T>)
         {
-          parsed.status = res->status;
+          static_cast<BankID::API::DefaultResponse&>(parsed).status = res->status;
         }
         return parsed;
       }
@@ -164,29 +162,62 @@ namespace BankID
           it->second});
     }
 
-    // Special case: status 400 with body (errorCode + details)
-    if (res->status == 400)
+    // Try to parse any error response as JSON first, fallback to default messages
+    if (!res->body.empty())
     {
       try
       {
+        // Validate that it's valid JSON
         auto jsonBody = nlohmann::json::parse(res->body);
-        std::string details = jsonBody.at("details").get<std::string>();
-        std::string errorCode = jsonBody.at("errorCode").get<std::string>();
+        // Return the raw JSON body as details for proper JSON response
+        
+        // Map status codes to appropriate BankIdErrorCode
+        BankIdErrorCode errorCode;
+        switch (res->status)
+        {
+          case 400: errorCode = BankIdErrorCode::INVALID_PARAMETERS; break;
+          case 401:
+          case 403: errorCode = BankIdErrorCode::UNAUTHORIZED; break;
+          case 404: errorCode = BankIdErrorCode::NOT_FOUND; break;
+          case 405: errorCode = BankIdErrorCode::METHOD_NOT_ALLOWED; break;
+          case 408: errorCode = BankIdErrorCode::REQUEST_TIMEOUT; break;
+          case 415: errorCode = BankIdErrorCode::UNSUPPORTED_MEDIA_TYPE; break;
+          case 500: errorCode = BankIdErrorCode::INTERNAL_ERROR; break;
+          case 503: errorCode = BankIdErrorCode::MAINTENANCE; break;
+          default: errorCode = BankIdErrorCode::INTERNAL_ERROR; break;
+        }
+        
         return std::unexpected(AuthError{
-            400,
-            BankIdErrorCode::INVALID_PARAMETERS,
-            errorCode + ": " + details});
+            res->status,
+            errorCode,
+            res->body});
       }
       catch (const std::exception &e)
       {
+        // If JSON parsing fails, return the raw body anyway (might be plain text error)
+        BankIdErrorCode errorCode;
+        switch (res->status)
+        {
+          case 400: errorCode = BankIdErrorCode::INVALID_PARAMETERS; break;
+          case 401:
+          case 403: errorCode = BankIdErrorCode::UNAUTHORIZED; break;
+          case 404: errorCode = BankIdErrorCode::NOT_FOUND; break;
+          case 405: errorCode = BankIdErrorCode::METHOD_NOT_ALLOWED; break;
+          case 408: errorCode = BankIdErrorCode::REQUEST_TIMEOUT; break;
+          case 415: errorCode = BankIdErrorCode::UNSUPPORTED_MEDIA_TYPE; break;
+          case 500: errorCode = BankIdErrorCode::INTERNAL_ERROR; break;
+          case 503: errorCode = BankIdErrorCode::MAINTENANCE; break;
+          default: errorCode = BankIdErrorCode::INTERNAL_ERROR; break;
+        }
+        
         return std::unexpected(AuthError{
-            400,
-            BankIdErrorCode::INVALID_PARAMETERS,
-            std::string("Failed to parse error response: ") + e.what()});
+            res->status,
+            errorCode,
+            std::string("Non-JSON error response: ") + e.what() + " - " + res->body});
       }
     }
 
-    // Status code → BankIdErrorCode and message mapping
+    // Status code → BankIdErrorCode and message mapping (fallback)
     const static std::unordered_map<int, std::pair<BankIdErrorCode, std::string>> defaultErrors = {
         {401, {BankIdErrorCode::UNAUTHORIZED, "You do not have access to the service."}},
         {403, {BankIdErrorCode::UNAUTHORIZED, "You do not have access to the service."}},

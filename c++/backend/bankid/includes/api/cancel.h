@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../bankid.h"
+#include "responses.h"
 #include <string>
 
 namespace BankID::API
@@ -40,6 +41,9 @@ namespace BankID::API
       j["orderRef"] = m_orderRef;
       return j;
     }
+
+    // Response type for cancel endpoint
+    using ResponseType = EmptyResponse;
   };
 
 } // namespace BankID::API

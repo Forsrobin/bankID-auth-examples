@@ -2,6 +2,7 @@
 
 #include "../bankid.h"
 #include "payment.h" // For UserVisibleTransaction
+#include "responses.h"
 #include <string>
 #include <optional>
 #include <vector>
@@ -42,7 +43,7 @@ namespace BankID::API
 
     // Static factory methods
     static OtherPaymentConfig create(const std::string &personalNumber,
-                                           const UserVisibleTransaction &transaction)
+                                     const UserVisibleTransaction &transaction)
     {
       return OtherPaymentConfig(personalNumber, transaction);
     }
@@ -69,7 +70,7 @@ namespace BankID::API
     static OtherPaymentConfig createCardPayment(const std::string &personalNumber,
                                                 const std::string &recipientName,
                                                 const std::string &amount,
-                                                const std::string &currency)
+                                                const CurrencyCode &currency)
     {
       UserVisibleTransaction transaction;
       transaction.transactionType = "card";
@@ -174,7 +175,7 @@ namespace BankID::API
       {
         const auto &money = m_userVisibleTransaction.money.value();
         transactionJson["money"]["amount"] = money.amount;
-        transactionJson["money"]["currency"] = money.currency;
+        transactionJson["money"]["currency"] = currencyToString(money.currency);
       }
 
       if (m_userVisibleTransaction.riskWarning.has_value())
@@ -264,6 +265,9 @@ namespace BankID::API
 
       return j;
     }
+
+    // Response type for other payment endpoint
+    using ResponseType = LimitedResponse;
   };
 
 } // namespace BankID::API
