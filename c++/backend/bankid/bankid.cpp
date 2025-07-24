@@ -139,7 +139,7 @@ namespace BankID
         from_json(j, parsed);
         if constexpr (std::is_base_of_v<BankID::API::DefaultResponse, T>)
         {
-          static_cast<BankID::API::DefaultResponse &>(parsed).http_status = res->status;
+          static_cast<BankID::API::DefaultResponse &>(parsed).httpStatus = res->status;
         }
         return parsed;
       }

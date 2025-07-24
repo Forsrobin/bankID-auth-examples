@@ -34,20 +34,20 @@ int main()
 
 
   // SSL Configuration for BankID
-  BankID::SSLConfig test_ssl_config(
+  BankID::SSLConfig sslConfig(
       BankID::Environment::TEST,
       "certs/bankid_cert.pem",
       "certs/bankid_key.pem");
 
-  if (!test_ssl_config.validate())
+  if (!sslConfig.validate())
   {
     return 1;
   }
 
   // Create your BankID session instance with just SSL config
-  BankID::Session bankid_session(test_ssl_config);
+  BankID::Session bankidSession(sslConfig);
 
-  if (!bankid_session.isInitialized())
+  if (!bankidSession.isInitialized())
   {
     std::cout << "BankID session initialization failed. Exiting." << std::endl;
     return 1;
@@ -57,41 +57,40 @@ int main()
 
   // GET /api/auth/init endpoint
   CROW_ROUTE(app, "/api/auth/init")
-  ([&bankid_session, &authConfig]()
+  ([&bankidSession, &authConfig]()
    {
         std::cout << "GET /init - Starting authentication" << std::endl;
         
         // Create auth config on-demand for this specific request
 
 
-        auto response = bankid_session.auth(authConfig);
+        auto response = bankidSession.auth(authConfig);
 
         if (!response)
         {
           const auto &error = response.error();
-          return crow::response(error.http_status, error.details);
+          return crow::response(error.httpStatus, error.details);
         }
         // Simple JSON response using nlohmann::json
-        json json_response;
-        json_response["orderRef"] = response->orderRef;
-        json_response["autoStartToken"] = response->autoStartToken;
-        json_response["authCountdown"] = 60;
+        json res;
+        res["orderRef"] = response->orderRef;
+        res["autoStartToken"] = response->autoStartToken;
+        res["authCountdown"] = 60;
 
-
-        crow::response resp(200, json_response.dump());
+        crow::response resp(200, res.dump());
         resp.add_header("Content-Type", "application/json");
         return resp; });
 
   // GET /api/auth/poll endpoint
   CROW_ROUTE(app, "/api/auth/poll/<string>")
-  ([&bankid_session, &authConfig](std::string orderRef)
+  ([&bankidSession, &authConfig](std::string orderRef)
    {
       std::cout << "GET /api/auth/poll - Checking authentication status" << std::endl;
       std::cout << "Order Reference: " << orderRef << std::endl;
 
       // Create collect config on-demand for this specific request
       auto collectConfig = BankID::API::CollectConfig::create(orderRef);
-      auto response = bankid_session.collect(collectConfig);
+      auto response = bankidSession.collect(collectConfig);
 
       json baseResponse;
       baseResponse["status"] = response->getStatusString();
@@ -103,7 +102,7 @@ int main()
       if (!response)
       {
         const auto &error = response.error();
-        return crow::response(error.http_status, error.details);
+        return crow::response(error.httpStatus, error.details);
       }
 
       std::cout << "Collect response status: " << response->getStatusString() << std::endl;
@@ -115,7 +114,7 @@ int main()
         if (!qrCode)  
         {
           const auto &error = qrCode.error();
-          return crow::response(error.http_status, error.details);
+          return crow::response(error.httpStatus, error.details);
         }
 
         baseResponse["qrCode"] = qrCode.value(); // Include QR code
@@ -144,13 +143,13 @@ int main()
       {
         // Try to get a QR code, if the QR code has expired, make a new request
         // to the /api/auth/init endpoint
-        auto newResponse = bankid_session.auth(authConfig);
+        auto newResponse = bankidSession.auth(authConfig);
 
 
         if (!newResponse)
         {
           const auto &error = response.error();
-          return crow::response(error.http_status, error.details);
+          return crow::response(error.httpStatus, error.details);
         }
 
         auto qrCode = BankID::QRGeneratorCache::instance().get(newResponse->orderRef);
@@ -164,7 +163,7 @@ int main()
         if (!nextQrCode)
         {
           const auto &error = nextQrCode.error();
-          return crow::response(error.http_status, error.details);
+          return crow::response(error.httpStatus, error.details);
         }
 
         baseResponse["qrCode"] = nextQrCode.value(); // Include QR code
@@ -180,30 +179,30 @@ int main()
       } });
 
   CROW_ROUTE(app, "/api/auth/cancel/<string>")
-  ([&bankid_session](std::string orderRef)
+  ([&bankidSession](std::string orderRef)
    {
         auto cancelConfig = BankID::API::CancelConfig::create(
             orderRef          // orderRef
         );
 
-        auto response = bankid_session.cancel(cancelConfig);
+        auto response = bankidSession.cancel(cancelConfig);
 
         if (!response)
         {
           const auto &error = response.error();
-          return crow::response(error.http_status, error.details);
+          return crow::response(error.httpStatus, error.details);
         }
 
 
         // Convert the response to JSON
-        json json_response;
-        json_response["message"] = "Order cancelled successfully";
+        json res;
+        res["message"] = "Order cancelled successfully";
 
-        crow::response resp(200, json_response.dump());
+        crow::response resp(200, res.dump());
         resp.add_header("Content-Type", "application/json");
         return resp; });
 
-  log_starting_server();
+  logStartingServer();
 
   // Register cleanup handler to ensure graceful shutdown
   std::atexit([]

@@ -7,17 +7,17 @@
 
 namespace BankID::API
 {
-  // Base response structure (for shared http_status field)
+  // Base response structure (for shared httpStatus field)
   struct BANKID_API DefaultResponse
   {
-    int http_status;
+    int httpStatus;
   };
 
   inline void from_json(const nlohmann::json &j, DefaultResponse &r)
   {
     // You can optionally include shared response fields if they exist in JSON
-    if (j.contains("http_status"))
-      j.at("http_status").get_to(r.http_status);
+    if (j.contains("httpStatus"))
+      j.at("httpStatus").get_to(r.httpStatus);
   }
 
   /**
