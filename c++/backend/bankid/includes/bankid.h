@@ -61,44 +61,6 @@ namespace BankID
     std::optional<bool> pinCode;
   };
 
-  struct BANKID_API DefaultResponse
-  {
-    int status;
-  };
-
-  inline void from_json(const nlohmann::json &j, DefaultResponse &r)
-  {
-    // You can optionally include shared response fields if they exist in JSON
-    if (j.contains("status"))
-      j.at("status").get_to(r.status);
-  }
-
-  /**
-   * Authentication response structure
-   * This structure contains the response from the BankID authentication API.
-   * It includes the order reference, auto-start token, QR start token, and QR start
-   * secret. Look at, https://developers.bankid.com/api-references/auth--sign/auth
-   * for more details.
-   */
-  struct BANKID_API AuthResponse : public DefaultResponse
-  {
-    std::string orderRef;
-    std::string autoStartToken;
-    std::string qrStartToken;
-    std::string qrStartSecret;
-  };
-
-  inline void from_json(const nlohmann::json &j, AuthResponse &r)
-  {
-    // Populate base struct fields (optional if `status` is added manually)
-    from_json(j, static_cast<DefaultResponse &>(r));
-
-    j.at("orderRef").get_to(r.orderRef);
-    j.at("autoStartToken").get_to(r.autoStartToken);
-    j.at("qrStartToken").get_to(r.qrStartToken);
-    j.at("qrStartSecret").get_to(r.qrStartSecret);
-  }
-
   enum class BANKID_API Environment
   {
     TEST,
@@ -117,12 +79,6 @@ namespace BankID
     UNSUPPORTED_MEDIA_TYPE,
     INTERNAL_ERROR,
     MAINTENANCE,
-  };
-
-  struct BANKID_API AuthError : public DefaultResponse
-  {
-    BankID::BankIdErrorCode errorCode;
-    std::string details;
   };
 
   /** SSL configuration structure
@@ -255,6 +211,7 @@ namespace BankID
 }
 
 // Include API endpoint configurations
+#include "api/responses.h"
 #include "api/auth.h"
 #include "api/sign.h"
 #include "api/payment.h"
@@ -266,6 +223,12 @@ namespace BankID
 
 namespace BankID
 {
+  // Now we can define AuthError after API namespace is available
+  struct BANKID_API AuthError : public BankID::API::DefaultResponse
+  {
+    BankID::BankIdErrorCode errorCode;
+    std::string details;
+  };
 
   // BankID Session class for managing authentication sessions
   class BANKID_API Session
@@ -284,56 +247,56 @@ namespace BankID
      * @param authConfig Configuration for the /auth endpoint
      * @return AuthResponse or AuthError
      */
-    const std::expected<BankID::AuthResponse, BankID::AuthError> auth(const BankID::API::AuthConfig &authConfig);
+    const std::expected<BankID::API::AuthConfig::ResponseType, BankID::AuthError> auth(const BankID::API::AuthConfig &authConfig);
 
     /**
      * Start signing process using SignConfig
      * @param signConfig Configuration for the /sign endpoint
      * @return AuthResponse or AuthError
      */
-    const std::expected<BankID::AuthResponse, BankID::AuthError> sign(const BankID::API::SignConfig &signConfig);
+    const std::expected<BankID::API::SignConfig::ResponseType, BankID::AuthError> sign(const BankID::API::SignConfig &signConfig);
 
     /**
      * Start payment process using PaymentConfig
      * @param paymentConfig Configuration for the /payment endpoint
      * @return AuthResponse or AuthError
      */
-    const std::expected<BankID::AuthResponse, BankID::AuthError> payment(const BankID::API::PaymentConfig &paymentConfig);
+    const std::expected<BankID::API::PaymentConfig::ResponseType, BankID::AuthError> payment(const BankID::API::PaymentConfig &paymentConfig);
 
     /**
      * Start phone authentication using PhoneAuthConfig
      * @param phoneAuthConfig Configuration for the /phone/auth endpoint
      * @return Limited response (orderRef only) or AuthError
      */
-    const std::expected<BankID::AuthResponse, BankID::AuthError> phoneAuth(const BankID::API::PhoneAuthConfig &phoneAuthConfig);
+    const std::expected<BankID::API::PhoneAuthConfig::ResponseType, BankID::AuthError> phoneAuth(const BankID::API::PhoneAuthConfig &phoneAuthConfig);
 
     /**
      * Start phone signing using PhoneSignConfig
      * @param phoneSignConfig Configuration for the /phone/sign endpoint
      * @return Limited response (orderRef only) or AuthError
      */
-    const std::expected<BankID::AuthResponse, BankID::AuthError> phoneSign(const BankID::API::PhoneSignConfig &phoneSignConfig);
+    const std::expected<BankID::API::PhoneSignConfig::ResponseType, BankID::AuthError> phoneSign(const BankID::API::PhoneSignConfig &phoneSignConfig);
 
     /**
      * Start other payment using OtherPaymentConfig
      * @param otherPaymentConfig Configuration for the /other/payment endpoint
      * @return Limited response (orderRef only) or AuthError
      */
-    const std::expected<BankID::AuthResponse, BankID::AuthError> otherPayment(const BankID::API::OtherPaymentConfig &otherPaymentConfig);
+    const std::expected<BankID::API::OtherPaymentConfig::ResponseType, BankID::AuthError> otherPayment(const BankID::API::OtherPaymentConfig &otherPaymentConfig);
 
     /**
      * Collect order status and result
      * @param collectConfig Configuration for the /collect endpoint
      * @return Collect response or AuthError
      */
-    const std::expected<BankID::AuthResponse, BankID::AuthError> collect(const BankID::API::CollectConfig &collectConfig);
+    const std::expected<BankID::API::CollectConfig::ResponseType, BankID::AuthError> collect(const BankID::API::CollectConfig &collectConfig);
 
     /**
      * Cancel an ongoing order
      * @param cancelConfig Configuration for the /cancel endpoint
      * @return Empty response or AuthError
      */
-    const std::expected<BankID::AuthResponse, BankID::AuthError> cancel(const BankID::API::CancelConfig &cancelConfig);
+    const std::expected<BankID::API::CancelConfig::ResponseType, BankID::AuthError> cancel(const BankID::API::CancelConfig &cancelConfig);
 
     // Get current token
     bool isInitialized() const { return m_initialized; }
@@ -348,7 +311,7 @@ namespace BankID
      * @return Expected response or error
      */
     template <typename ConfigType>
-    const std::expected<BankID::AuthResponse, BankID::AuthError> makeApiCall(
+    const std::expected<typename ConfigType::ResponseType, BankID::AuthError> makeApiCall(
         const std::string &endpoint,
         const ConfigType &config);
 

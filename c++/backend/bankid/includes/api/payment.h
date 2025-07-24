@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../bankid.h"
+#include "responses.h"
 #include <string>
 #include <optional>
 #include <vector>
@@ -282,6 +283,9 @@ namespace BankID::API
 
       return j;
     }
+
+    // Response type for payment endpoint
+    using ResponseType = OrderResponse;
   };
 
 } // namespace BankID::API

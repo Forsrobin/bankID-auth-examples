@@ -2,6 +2,7 @@
 
 #include "../bankid.h"
 #include "payment.h" // For UserVisibleTransaction
+#include "responses.h"
 #include <string>
 #include <optional>
 #include <vector>
@@ -264,6 +265,9 @@ namespace BankID::API
 
       return j;
     }
+
+    // Response type for other payment endpoint
+    using ResponseType = LimitedResponse;
   };
 
 } // namespace BankID::API

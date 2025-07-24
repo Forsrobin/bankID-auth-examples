@@ -42,44 +42,47 @@ namespace BankID
   }
 
   // Endpoint-specific implementations
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::auth(const BankID::API::AuthConfig &authConfig)
+  const std::expected<BankID::API::AuthConfig::ResponseType, BankID::AuthError> Session::auth(const BankID::API::AuthConfig &authConfig)
   {
     auto response = makeApiCall("/auth", authConfig);
-    BankID::QRGeneratorCache::instance().add(response->orderRef, response->qrStartToken, response->qrStartSecret);
+    if (response.has_value())
+    {
+      BankID::QRGeneratorCache::instance().add(response->orderRef, response->qrStartToken, response->qrStartSecret);
+    }
     return response;
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::sign(const BankID::API::SignConfig &signConfig)
+  const std::expected<BankID::API::SignConfig::ResponseType, BankID::AuthError> Session::sign(const BankID::API::SignConfig &signConfig)
   {
     return makeApiCall("/sign", signConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::payment(const BankID::API::PaymentConfig &paymentConfig)
+  const std::expected<BankID::API::PaymentConfig::ResponseType, BankID::AuthError> Session::payment(const BankID::API::PaymentConfig &paymentConfig)
   {
     return makeApiCall("/payment", paymentConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::phoneAuth(const BankID::API::PhoneAuthConfig &phoneAuthConfig)
+  const std::expected<BankID::API::PhoneAuthConfig::ResponseType, BankID::AuthError> Session::phoneAuth(const BankID::API::PhoneAuthConfig &phoneAuthConfig)
   {
     return makeApiCall("/phone/auth", phoneAuthConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::phoneSign(const BankID::API::PhoneSignConfig &phoneSignConfig)
+  const std::expected<BankID::API::PhoneSignConfig::ResponseType, BankID::AuthError> Session::phoneSign(const BankID::API::PhoneSignConfig &phoneSignConfig)
   {
     return makeApiCall("/phone/sign", phoneSignConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::otherPayment(const BankID::API::OtherPaymentConfig &otherPaymentConfig)
+  const std::expected<BankID::API::OtherPaymentConfig::ResponseType, BankID::AuthError> Session::otherPayment(const BankID::API::OtherPaymentConfig &otherPaymentConfig)
   {
     return makeApiCall("/other/payment", otherPaymentConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::collect(const BankID::API::CollectConfig &collectConfig)
+  const std::expected<BankID::API::CollectConfig::ResponseType, BankID::AuthError> Session::collect(const BankID::API::CollectConfig &collectConfig)
   {
     return makeApiCall("/collect", collectConfig);
   }
 
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::cancel(const BankID::API::CancelConfig &cancelConfig)
+  const std::expected<BankID::API::CancelConfig::ResponseType, BankID::AuthError> Session::cancel(const BankID::API::CancelConfig &cancelConfig)
   {
     // Clean up any QR code generator associated with this orderRef
     QRGeneratorCache::instance().remove(cancelConfig.getOrderRef());
@@ -89,7 +92,7 @@ namespace BankID
 
   // Generic template implementation for making API calls
   template <typename ConfigType>
-  const std::expected<BankID::AuthResponse, BankID::AuthError> Session::makeApiCall(
+  const std::expected<typename ConfigType::ResponseType, BankID::AuthError> Session::makeApiCall(
       const std::string &endpoint,
       const ConfigType &config)
   {
@@ -116,7 +119,7 @@ namespace BankID
                            payload,
                            "application/json");
 
-    return validateStatusAndParse<BankID::AuthResponse>(res);
+    return validateStatusAndParse<typename ConfigType::ResponseType>(res);
   }
 
   template <typename T>
@@ -138,8 +141,9 @@ namespace BankID
       try
       {
         nlohmann::json j = nlohmann::json::parse(res->body);
-        T parsed = j.get<T>();
-        if constexpr (std::is_base_of_v<DefaultResponse, T>)
+        T parsed;
+        from_json(j, parsed);
+        if constexpr (std::is_base_of_v<BankID::API::DefaultResponse, T>)
         {
           parsed.status = res->status;
         }
