@@ -24,6 +24,7 @@
     "framer-motion": "^12.23.7",
     "lucide-react": "^0.476.0",
     "react": "^19.0.0",
+    "react-cookie": "^8.0.1",
     "react-dom": "^19.0.0",
     "react-qr-code": "^2.0.18",
     "tailwind-merge": "^3.0.2",

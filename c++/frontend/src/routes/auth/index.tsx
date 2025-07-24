@@ -1,13 +1,13 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import BankIdLogo from '@/assets/images/bankid.png'
 import { BankIDModal } from '@/components/BankIdModal'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import type { AuthState } from '@/lib/types/auth'
+import { useAuthStateMachine } from '@/hooks/useAuthStateMachine'
+import { useCountdown } from '@/hooks/useTimeout'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
 import { Shield } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useCountdown } from '@/hooks/useTimeout'
-import BankIdLogo from '@/assets/images/bankid.png'
 
 export const Route = createFileRoute('/auth/')({
   component: Auth,
@@ -15,101 +15,49 @@ export const Route = createFileRoute('/auth/')({
 
 export default function Auth() {
   const [showBankIDModal, setShowBankIDModal] = useState(false)
-  const [qrCode, setQrCode] = useState<string | null>(null)
-  const [authState, setAuthState] = useState<AuthState>('pending')
-  const [authCountdown, setAuthCountdown] = useState<number>(0)
-  const [orderRef, setOrderRef] = useState<string | null>(null)
-
-  const router = useRouter()
+  const { state, actions } = useAuthStateMachine()
 
   // Track the countdown timer
-  const countdown = useCountdown(authCountdown, () => {
-    setAuthState('failed')
-    resetAuthState()
+  const countdown = useCountdown(state.authCountdown, () => {
+    actions.reset() // This will set status to 'failed' and clear states
   })
 
-  // Equivalent to trpc.auth.pollAuth.useQuery
+  // Poll auth status
   const { data: pollAuthData } = useQuery({
-    queryKey: ['pollAuth'],
+    queryKey: ['pollAuth', state.orderRef],
     queryFn: async () => {
-      const res = await fetch(`/api/auth/poll?orderRef=${orderRef}`)
+      const res = await fetch(`/api/auth/poll?orderRef=${state.orderRef}`)
       if (!res.ok) throw new Error('Failed to poll auth status')
-      const data = await res.json()
-      return data
+      return await res.json()
     },
-    enabled: orderRef !== null,
+    enabled: state.orderRef !== null,
     refetchInterval: 1000,
     refetchOnWindowFocus: false,
   })
 
-  // Equivalent to trpc.auth.login.useMutation
+  // Initialize auth
   const authMutation = useMutation({
     mutationFn: async () => {
+      await fetch(`/api/auth/poll`) // This is just to trigger the initial state
       const res = await fetch('/api/auth/init')
       if (!res.ok) throw new Error('Failed to init auth')
-      const data = await res.json()
-      return data
+      return await res.json()
     },
     onSuccess: (data) => {
-      setAuthState('qr-code')
-      setOrderRef(data.orderRef)
-      setAuthCountdown(data.authCountdown)
+      actions.initAuth(data.orderRef, data.authCountdown)
     },
   })
 
+  // Handle poll data changes
   useEffect(() => {
-    if (!pollAuthData) return
-
-    switch (pollAuthData.status) {
-      case 'newOrderRef':
-        if (pollAuthData.orderRef) setOrderRef(pollAuthData.orderRef)
-        if (pollAuthData.qrCode) setQrCode(pollAuthData.qrCode)
-
-        break
-      case 'qrCode':
-        if (authState !== 'qr-code') setAuthState('qr-code')
-
-        if (pollAuthData.qrCode) setQrCode(pollAuthData.qrCode)
-
-        break
-      case 'complete':
-        // Create a access token and set it in cookies
-        // WARNING: This is a simplified example, in production you should handle this securely
-        // using refresh tokens or similar mechanisms
-        // setCookie('accessToken', pollAuthData.token, {
-        //   maxAge: 60 * 60 * 24 * 30,
-        //   expires: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000),
-        // })
-
-        setAuthState('success')
-        clearStates()
-        setTimeout(() => {
-          return router.navigate({ to: '/' })
-        }, 1000)
-        break
-      case 'failed':
-        setAuthState('failed')
-        clearStates()
-        break
+    if (pollAuthData) {
+      actions.handlePollData(pollAuthData)
     }
-  }, [authState, pollAuthData])
-
-  const clearStates = () => {
-    setQrCode(null)
-    setOrderRef(null)
-    setAuthCountdown(0)
-  }
-
-  const resetAuthState = () => {
-    setAuthState('loading')
-    setQrCode(null)
-    setOrderRef(null)
-    setAuthCountdown(0)
-  }
+  }, [pollAuthData])
 
   const handleBankIDLogin = () => {
     setShowBankIDModal(true)
-    resetAuthState()
+    actions.reset()
     authMutation.mutate()
   }
 
@@ -119,7 +67,7 @@ export default function Auth() {
   }
 
   const cancelPolling = () => {
-    resetAuthState()
+    actions.reset()
     setShowBankIDModal(false)
     authMutation.reset()
   }
@@ -129,7 +77,7 @@ export default function Auth() {
       <div className='container flex-1 mx-auto px-4 py-12 flex items-center justify-center pb-32'>
         <div className='mx-auto max-w-6xl space-y-6'>
           <div className={`h-28 w-full relative`}>
-            <img src={BankIdLogo} alt='BankID Logo' width={112} className='object-contain mx-auto' />
+            <img src={BankIdLogo} alt='BankID Logo' className='object-contain' />
           </div>
           <div className='grid gap-12 lg:grid-cols-1 lg:gap-16'>
             <div className='space-y-4'>
@@ -137,14 +85,14 @@ export default function Auth() {
                 <span className='block text-primary'>BankID</span>
                 Login
               </h2>
-              <p className='text-lg text-center text-gray-600'>Simple demo of BankID login and authentication</p>
+              <p className='text-lg text-center text-gray-600'>Simple login demo using BankID and Next.js</p>
             </div>
 
             <div className='flex items-center justify-center'>
               <Card className='w-full max-w-md shadow-xl'>
                 <CardHeader className='space-y-1 text-center'>
                   <CardTitle className='text-2xl font-bold'>Login</CardTitle>
-                  <CardDescription>Use your BankID to log in</CardDescription>
+                  <CardDescription>Open the BankID app to log in</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-6'>
                   <div className='space-y-4'>
@@ -164,10 +112,23 @@ export default function Auth() {
 
                     <div className='rounded-lg bg-blue-50 p-4'>
                       <div className='flex items-start space-x-3'>
-                        <Shield className='h-5 w-5 text-primary mt-0.5' />
-                        <div className='text-sm'>
-                          <p className='font-medium text-primary'>Test login</p>
-                          <p className='text-primary'>This is a demo that simulates BankID login using their public test API and certificates.</p>
+                        <div className='text-sm space-y-2'>
+                          <div className={`flex items-center gap-1`}>
+                            <Shield size={16} className='text-primary mt-0.5' />
+                            <p className='font-medium text-primary'>Test login</p>
+                          </div>
+                          <p className='text-primary/80'>
+                            This demo is using BankID test certificates and to log in with BankID you must have a test BankID account set up. To
+                            create a test account, read more here:
+                          </p>
+                          <a
+                            href='https://developers.bankid.com/test-portal/bankid-for-test'
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='font-medium text-primary underline'
+                          >
+                            Set up test account
+                          </a>
                         </div>
                       </div>
                     </div>
@@ -180,11 +141,13 @@ export default function Auth() {
       </div>
 
       <BankIDModal
-        setAuthState={setAuthState}
-        authState={authState}
+        setAuthState={(state) => {
+          if (state === 'failed') actions.reset()
+        }}
+        authState={state.status}
         isOpen={showBankIDModal}
         cancelPolling={cancelPolling}
-        qrCode={qrCode}
+        qrCode={state.qrCode}
         authCountdown={countdown}
         retryLogin={retryLogin}
       />
