@@ -79,21 +79,22 @@ export function useAuthStateMachine() {
   // Handle poll data changes
   const handlePollData = (pollData: PoolAuthResponse) => {
     switch (pollData.status) {
-      case 'newOrderRef':
-        dispatch({
-          type: 'SET_QR_CODE',
-          payload: {
-            qrCode: pollData.qrCode!,
-            orderRef: pollData.orderRef!,
-          },
-        })
-        break
-
-      case 'qrCode':
-        dispatch({
-          type: 'SET_QR_CODE',
-          payload: { qrCode: pollData.qrCode! },
-        })
+      case 'pending':
+        // check if the new orderRef is different from the current one
+        if (pollData.orderRef && pollData.orderRef !== state.orderRef) {
+          dispatch({
+            type: 'SET_QR_CODE',
+            payload: {
+              qrCode: pollData.qrCode!,
+              orderRef: pollData.orderRef!,
+            },
+          })
+        } else {
+          dispatch({
+            type: 'SET_QR_CODE',
+            payload: { qrCode: pollData.qrCode! },
+          })
+        }
         break
 
       case 'failed':
@@ -133,6 +134,10 @@ export function useAuthStateMachine() {
   const reset = () => {
     dispatch({ type: 'RESET' })
   }
+  const expired = () => {
+    dispatch({ type: 'AUTH_FAILED' })
+    cookies.remove('accessToken', { path: '/' })
+  }
 
   return {
     state,
@@ -140,6 +145,7 @@ export function useAuthStateMachine() {
       handlePollData,
       initAuth,
       reset,
+      expired
     },
   }
 }

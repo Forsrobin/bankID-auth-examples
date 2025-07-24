@@ -12,7 +12,7 @@ export const Route = createFileRoute('/')({
   component: Home,
 })
 
-export default async function Home() {
+export default function Home() {
   const { user } = useUserContext()
   const router = useRouter()
   const logout = async () => {
@@ -69,7 +69,7 @@ export default async function Home() {
           <CardHeader>
             <CardTitle className='flex items-center gap-2 text-amber-800'>
               <Shield className='h-5 w-5' />
-              SSecurity Information
+              Security Information
             </CardTitle>
           </CardHeader>
           <CardContent className='text-amber-900 space-y-3'>

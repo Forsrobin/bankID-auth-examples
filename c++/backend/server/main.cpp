@@ -53,16 +53,16 @@ int main()
     return 1;
   }
 
+  auto authConfig = BankID::API::AuthConfig("127.0.0.1").setUserVisibleData("TG9nZ2luIHDDpSBjKysgdGVzdCBwb3J0YWxlbg==");
 
   // GET /api/auth/init endpoint
   CROW_ROUTE(app, "/api/auth/init")
-  ([&bankid_session]()
+  ([&bankid_session, &authConfig]()
    {
         std::cout << "GET /init - Starting authentication" << std::endl;
         
         // Create auth config on-demand for this specific request
-        auto authConfig = BankID::API::AuthConfig("127.0.0.1")
-            .setUserVisibleData("TG9nZ2luIHDDpSBjKysgdGVzdCBwb3J0YWxlbg==");
+
 
         auto response = bankid_session.auth(authConfig);
 
@@ -75,7 +75,7 @@ int main()
         json json_response;
         json_response["orderRef"] = response->orderRef;
         json_response["autoStartToken"] = response->autoStartToken;
-        json_response["authCountdown"] = 300;
+        json_response["authCountdown"] = 60;
 
 
         crow::response resp(200, json_response.dump());
@@ -84,7 +84,7 @@ int main()
 
   // GET /api/auth/poll endpoint
   CROW_ROUTE(app, "/api/auth/poll/<string>")
-  ([&bankid_session](std::string orderRef)
+  ([&bankid_session, &authConfig](std::string orderRef)
    {
       std::cout << "GET /api/auth/poll - Checking authentication status" << std::endl;
       std::cout << "Order Reference: " << orderRef << std::endl;
@@ -93,12 +93,12 @@ int main()
       auto collectConfig = BankID::API::CollectConfig::create(orderRef);
       auto response = bankid_session.collect(collectConfig);
 
-
-      std::cout << "==============================================================" << std::endl;
-      std::cout << "Collect response status: " << response->status.c_str() << std::endl;
-      std::cout << "==============================================================" << std::endl;
-
-
+      json baseResponse;
+      baseResponse["status"] = response->getStatusString();
+      baseResponse["orderRef"] = response->orderRef;
+      baseResponse["qrCode"] = nullptr; // Include QR code
+      baseResponse["token"] = nullptr; // No token yet
+      baseResponse["user"] = nullptr;  // No user data yet
 
       if (!response)
       {
@@ -106,41 +106,77 @@ int main()
         return crow::response(error.http_status, error.details);
       }
 
-      if (response->status == "pending")
-      {
-        json json_response;
-        json_response["status"] = "pending";
-        json_response["orderRef"] = response->orderRef;
-        json_response["token"] = nullptr;
-        json_response["user"] = nullptr;  
+      std::cout << "Collect response status: " << response->getStatusString() << std::endl;
 
-        crow::response resp(200, json_response.dump());
+      if (response->status == BankID::API::CollectStatus::PENDING)
+      {
+        auto qrCode = BankID::QRGeneratorCache::instance().get(response->orderRef)->getNextQRCode();
+
+        if (!qrCode)  
+        {
+          const auto &error = qrCode.error();
+          return crow::response(error.http_status, error.details);
+        }
+
+        baseResponse["qrCode"] = qrCode.value(); // Include QR code
+
+        crow::response resp(200, baseResponse.dump());
         resp.add_header("Content-Type", "application/json");
         return resp;
       }
-      else if (response->status == "complete")
+      else if (response->status == BankID::API::CollectStatus::COMPLETE)
       {
         // Convert the response to JSON
-        json json_response;
-        json_response["status"] = "complete";
-        json_response["orderRef"] = response->orderRef;
-        json_response["token"] = response->completionData->signature; 
-
-        json_response["user"] = {
+      
+        baseResponse["token"] = nullptr;
+        baseResponse["user"] = response->completionData->user ? json{
           {"personalNumber", response->completionData->user->personalNumber},
           {"name", response->completionData->user->name},
           {"givenName", response->completionData->user->givenName},
           {"surname", response->completionData->user->surname}
-        };
+        } : nullptr;  
 
-
-        crow::response resp(200, json_response.dump());
+        crow::response resp(200, baseResponse.dump());
         resp.add_header("Content-Type", "application/json");
         return resp;
       }
       else
       {
-        return crow::response(400, "Invalid status: " + response->status);
+        // Try to get a QR code, if the QR code has expired, make a new request
+        // to the /api/auth/init endpoint
+        auto newResponse = bankid_session.auth(authConfig);
+
+
+        if (!newResponse)
+        {
+          const auto &error = response.error();
+          return crow::response(error.http_status, error.details);
+        }
+
+        auto qrCode = BankID::QRGeneratorCache::instance().get(newResponse->orderRef);
+        if (!qrCode)
+        {
+          return crow::response(404, "QR code not found in cache");
+        }
+
+        auto nextQrCode = qrCode->getNextQRCode();
+        
+        if (!nextQrCode)
+        {
+          const auto &error = nextQrCode.error();
+          return crow::response(error.http_status, error.details);
+        }
+
+        baseResponse["qrCode"] = nextQrCode.value(); // Include QR code
+        baseResponse["orderRef"] = newResponse->orderRef;
+        baseResponse["status"] = "pending";
+
+        std::cout << "New orderRef: " << newResponse->orderRef << std::endl;
+        std::cout << "sending back new payload: " << baseResponse.dump() << std::endl;
+
+        crow::response resp(200, baseResponse.dump());
+        resp.add_header("Content-Type", "application/json");
+        return resp;
       } });
 
   CROW_ROUTE(app, "/api/auth/cancel/<string>")

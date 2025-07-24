@@ -156,58 +156,6 @@ namespace BankID
     }
   };
 
-  class BANKID_API QRGenerator
-  {
-  public:
-    QRGenerator(std::string qrStartToken, std::string qrStartSecret);
-
-    std::string getNextQRCode(); // Returns next valid QR string
-    bool isExpired() const;      // Returns true if 30s has passed
-
-  private:
-    std::string m_qr_start_token;
-    std::string m_qr_start_secret;
-    std::chrono::steady_clock::time_point m_creation_time;
-
-    int getElapsedSeconds() const;
-    std::string computeAuthCode(int seconds) const;
-  };
-
-  /**
-   * QRGeneratorCache class for caching QR code generators.
-   * Using a singleton pattern to manage QR code generators.
-   * Ensures only one shared cache exists throughout the application.
-   * 
-   * This class provides methods to add, get, and remove QR code generators
-   * based on order references. It also includes a cleanup loop to remove expired
-   * generators periodically.
-   */
-  class BANKID_API QRGeneratorCache
-  {
-  public:
-    static QRGeneratorCache &instance();
-
-    void add(const std::string &orderRef, const std::string &qrStartToken, const std::string &qrStartSecret);
-    std::shared_ptr<QRGenerator> get(const std::string &orderRef);
-    void remove(const std::string &orderRef);
-
-    void shutdown(); // Graceful stop
-
-  private:
-    QRGeneratorCache();
-    ~QRGeneratorCache();
-
-    void cleanupLoop();
-
-    std::unordered_map<std::string, std::shared_ptr<QRGenerator>> m_cache;
-    std::mutex m_cache_mutex;
-
-    std::thread cleaner_thread;
-    std::condition_variable m_cv;
-    std::mutex cv_mutex;
-    std::atomic<bool> m_running;
-  };
-
 }
 
 // Include API endpoint configurations
@@ -322,6 +270,58 @@ namespace BankID
     const std::expected<T, BankID::AuthError> validateStatusAndParse(
         const httplib::Result &res,
         const std::unordered_map<int, std::string> &customErrors = {});
+  };
+
+  class BANKID_API QRGenerator
+  {
+  public:
+    QRGenerator(std::string qrStartToken, std::string qrStartSecret);
+
+    const std::expected<std::string, BankID::API::ErrorResponse> getNextQRCode(); // Returns next valid QR string
+    bool isExpired() const;                                                       // Returns true if 30s has passed
+
+  private:
+    std::string m_qr_start_token;
+    std::string m_qr_start_secret;
+    std::chrono::steady_clock::time_point m_creation_time;
+
+    int getElapsedSeconds() const;
+    std::string computeAuthCode(int seconds) const;
+  };
+
+  /**
+   * QRGeneratorCache class for caching QR code generators.
+   * Using a singleton pattern to manage QR code generators.
+   * Ensures only one shared cache exists throughout the application.
+   *
+   * This class provides methods to add, get, and remove QR code generators
+   * based on order references. It also includes a cleanup loop to remove expired
+   * generators periodically.
+   */
+  class BANKID_API QRGeneratorCache
+  {
+  public:
+    static QRGeneratorCache &instance();
+
+    void add(const std::string &orderRef, const std::string &qrStartToken, const std::string &qrStartSecret);
+    std::shared_ptr<QRGenerator> get(const std::string &orderRef);
+    void remove(const std::string &orderRef);
+
+    void shutdown(); // Graceful stop
+
+  private:
+    QRGeneratorCache();
+    ~QRGeneratorCache();
+
+    void cleanupLoop();
+
+    std::unordered_map<std::string, std::shared_ptr<QRGenerator>> m_cache;
+    std::mutex m_cache_mutex;
+
+    std::thread cleaner_thread;
+    std::condition_variable m_cv;
+    std::mutex cv_mutex;
+    std::atomic<bool> m_running;
   };
 
 }

@@ -8,7 +8,7 @@ export type UserData = {
 }
 
 export type PoolAuthResponse = {
-  status: 'qrCode' | 'newOrderRef' | 'complete' | 'failed'
+  status: 'pending' | 'complete' | 'failed'
   qrCode: string | null
   orderRef: string | null
   token: string | null

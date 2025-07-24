@@ -7,17 +7,17 @@
 
 namespace BankID::API
 {
-  // Base response structure (for shared status field)
+  // Base response structure (for shared http_status field)
   struct BANKID_API DefaultResponse
   {
-    int status;
+    int http_status;
   };
 
   inline void from_json(const nlohmann::json &j, DefaultResponse &r)
   {
     // You can optionally include shared response fields if they exist in JSON
-    if (j.contains("status"))
-      j.at("status").get_to(r.status);
+    if (j.contains("http_status"))
+      j.at("http_status").get_to(r.http_status);
   }
 
   /**
@@ -100,10 +100,14 @@ namespace BankID::API
 
   inline void from_json(const nlohmann::json &j, CollectResponseUser &r)
   {
-    if (j.contains("personalNumber")) r.personalNumber = j.at("personalNumber").get<std::string>();
-    if (j.contains("name")) r.name = j.at("name").get<std::string>();
-    if (j.contains("givenName")) r.givenName = j.at("givenName").get<std::string>();
-    if (j.contains("surname")) r.surname = j.at("surname").get<std::string>();
+    if (j.contains("personalNumber"))
+      r.personalNumber = j.at("personalNumber").get<std::string>();
+    if (j.contains("name"))
+      r.name = j.at("name").get<std::string>();
+    if (j.contains("givenName"))
+      r.givenName = j.at("givenName").get<std::string>();
+    if (j.contains("surname"))
+      r.surname = j.at("surname").get<std::string>();
   }
 
   struct BANKID_API CollectResponseDevice
@@ -114,8 +118,10 @@ namespace BankID::API
 
   inline void from_json(const nlohmann::json &j, CollectResponseDevice &r)
   {
-    if (j.contains("ipAddress")) r.ipAddress = j.at("ipAddress").get<std::string>();
-    if (j.contains("uhi")) r.uhi = j.at("uhi").get<std::string>();
+    if (j.contains("ipAddress"))
+      r.ipAddress = j.at("ipAddress").get<std::string>();
+    if (j.contains("uhi"))
+      r.uhi = j.at("uhi").get<std::string>();
   }
 
   struct BANKID_API CollectResponseStepUp
@@ -125,8 +131,19 @@ namespace BankID::API
 
   inline void from_json(const nlohmann::json &j, CollectResponseStepUp &r)
   {
-    if (j.contains("mrtd")) r.mrtd = j.at("mrtd").get<bool>();
+    if (j.contains("mrtd"))
+      r.mrtd = j.at("mrtd").get<bool>();
   }
+
+  /**
+   * Risk values for collect endpoint
+   */
+  enum class CollectCompletionDataRisk
+  {
+    LOW,
+    MODERATE,
+    HIGH
+  };
 
   struct BANKID_API CollectResponseCompletionData
   {
@@ -136,19 +153,61 @@ namespace BankID::API
     std::optional<std::string> bankIdIssueDate;
     std::optional<std::string> signature;
     std::optional<std::string> ocspResponse;
-    std::optional<std::string> risk;
+    std::optional<CollectCompletionDataRisk> risk;
+    std::string getRiskString() const
+    {
+      switch (risk.value_or(CollectCompletionDataRisk::LOW))
+      {
+      case CollectCompletionDataRisk::LOW:
+        return "low";
+      case CollectCompletionDataRisk::MODERATE:
+        return "moderate";
+      case CollectCompletionDataRisk::HIGH:
+        return "high";
+      default:
+        return "unknown";
+      }
+    }
+    CollectCompletionDataRisk fromString(const std::string &riskStr)
+    {
+      if (riskStr == "low")
+        return CollectCompletionDataRisk::LOW;
+      else if (riskStr == "moderate")
+        return CollectCompletionDataRisk::MODERATE;
+      else if (riskStr == "high")
+        return CollectCompletionDataRisk::HIGH;
+      else
+        throw std::invalid_argument("Invalid collect risk string: " + riskStr);
+    }
   };
 
   inline void from_json(const nlohmann::json &j, CollectResponseCompletionData &r)
   {
-    if (j.contains("user")) r.user = j.at("user").get<CollectResponseUser>();
-    if (j.contains("device")) r.device = j.at("device").get<CollectResponseDevice>();
-    if (j.contains("stepUp")) r.stepUp = j.at("stepUp").get<CollectResponseStepUp>();
-    if (j.contains("bankIdIssueDate")) r.bankIdIssueDate = j.at("bankIdIssueDate").get<std::string>();
-    if (j.contains("signature")) r.signature = j.at("signature").get<std::string>();
-    if (j.contains("ocspResponse")) r.ocspResponse = j.at("ocspResponse").get<std::string>();
-    if (j.contains("risk")) r.risk = j.at("risk").get<std::string>();
+    if (j.contains("user"))
+      r.user = j.at("user").get<CollectResponseUser>();
+    if (j.contains("device"))
+      r.device = j.at("device").get<CollectResponseDevice>();
+    if (j.contains("stepUp"))
+      r.stepUp = j.at("stepUp").get<CollectResponseStepUp>();
+    if (j.contains("bankIdIssueDate"))
+      r.bankIdIssueDate = j.at("bankIdIssueDate").get<std::string>();
+    if (j.contains("signature"))
+      r.signature = j.at("signature").get<std::string>();
+    if (j.contains("ocspResponse"))
+      r.ocspResponse = j.at("ocspResponse").get<std::string>();
+    if (j.contains("risk"))
+      r.risk = r.fromString(j.at("risk").get<std::string>());
   }
+
+  /**
+   * Status values for collect endpoint
+   */
+  enum class CollectStatus
+  {
+    PENDING,
+    COMPLETE,
+    FAILED
+  };
 
   /**
    * Collect Response - used by /collect endpoint
@@ -157,17 +216,44 @@ namespace BankID::API
   struct BANKID_API CollectResponse : public DefaultResponse
   {
     std::string orderRef;
-    std::string status;
+    CollectStatus status;
     std::optional<CollectResponseCompletionData> completionData;
     std::optional<std::string> hintCode;
+    std::string getStatusString() const
+    {
+      switch (status)
+      {
+      case CollectStatus::PENDING:
+        return "pending";
+      case CollectStatus::COMPLETE:
+        return "complete";
+      case CollectStatus::FAILED:
+        return "failed";
+      default:
+        return "unknown";
+      }
+    }
+    CollectStatus fromString(const std::string &statusStr)
+    {
+      if (statusStr == "pending")
+        return CollectStatus::PENDING;
+      else if (statusStr == "complete")
+        return CollectStatus::COMPLETE;
+      else if (statusStr == "failed")
+        return CollectStatus::FAILED;
+      else
+        throw std::invalid_argument("Invalid collect status string: " + statusStr);
+    }
   };
 
   inline void from_json(const nlohmann::json &j, CollectResponse &r)
   {
     from_json(j, static_cast<DefaultResponse &>(r));
     r.orderRef = j.at("orderRef").get<std::string>();
-    r.status = j.at("status").get<std::string>();
-    if (j.contains("completionData")) r.completionData = j.at("completionData").get<CollectResponseCompletionData>();
-    if (j.contains("hintCode")) r.hintCode = j.at("hintCode").get<std::string>();
+    r.status = r.fromString(j.at("status").get<std::string>());
+    if (j.contains("completionData"))
+      r.completionData = j.at("completionData").get<CollectResponseCompletionData>();
+    if (j.contains("hintCode"))
+      r.hintCode = j.at("hintCode").get<std::string>();
   }
 }

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStateMachine } from '@/hooks/useAuthStateMachine'
 import { useCountdown } from '@/hooks/useTimeout'
-import type { AuthInitResponse } from '@/lib/types/auth'
+import type { AuthInitResponse, PoolAuthResponse } from '@/lib/types/auth'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Shield } from 'lucide-react'
@@ -22,7 +22,7 @@ export default function Auth() {
 
   // Track the countdown timer
   const countdown = useCountdown(state.authCountdown, () => {
-    actions.reset() // This will set status to 'failed' and clear states
+    actions.expired() // This will set status to 'failed' and clear states
   })
 
   // Poll auth status
@@ -31,7 +31,7 @@ export default function Auth() {
     queryFn: async () => {
       const res = await fetch(`${baseApiUrl}/api/auth/poll/${state.orderRef}`)
       if (!res.ok) throw new Error('Failed to poll auth status')
-      return await res.json()
+      return (await res.json()) as PoolAuthResponse
     },
     enabled: state.orderRef !== null,
     refetchInterval: 1000,
@@ -59,9 +59,6 @@ export default function Auth() {
       if (!res.ok) throw new Error('Failed to cancel auth')
       return await res.json()
     },
-    onSuccess: () => {
-      cancelPolling()
-    },
   })
 
   // Handle poll data changes
@@ -77,12 +74,14 @@ export default function Auth() {
     authMutation.mutate()
   }
 
-  const retryLogin = () => {
+  const retryLogin = async () => {
+    cancelBankIDRequest.mutate()
     authMutation.reset()
     handleBankIDLogin()
   }
 
-  const cancelPolling = () => {
+  const cancelPolling = async () => {
+    cancelBankIDRequest.mutate()
     actions.reset()
     setShowBankIDModal(false)
     authMutation.reset()

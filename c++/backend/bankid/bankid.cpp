@@ -139,7 +139,7 @@ namespace BankID
         from_json(j, parsed);
         if constexpr (std::is_base_of_v<BankID::API::DefaultResponse, T>)
         {
-          static_cast<BankID::API::DefaultResponse &>(parsed).status = res->status;
+          static_cast<BankID::API::DefaultResponse &>(parsed).http_status = res->status;
         }
         return parsed;
       }
@@ -330,11 +330,11 @@ namespace BankID
     return oss.str();
   }
 
-  std::string QRGenerator::getNextQRCode()
+  const std::expected<std::string, BankID::API::ErrorResponse> QRGenerator::getNextQRCode()
   {
     int seconds = getElapsedSeconds();
     if (isExpired())
-      return "";
+      return std::unexpected(BankID::API::ErrorResponse{404, "QR code expired", "The QR code has expired after 30 seconds."});
 
     std::string authCode = computeAuthCode(seconds);
     return "bankid." + m_qr_start_token + "." + std::to_string(seconds) + "." + authCode;
