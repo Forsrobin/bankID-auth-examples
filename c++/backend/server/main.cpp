@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <csignal>
+#include <crow/middlewares/cors.h>
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -17,6 +18,21 @@ void handleShutdown(int signal)
 
 int main()
 {
+  // Enable CORS for the application
+  crow::App<crow::CORSHandler> app;
+  auto &cors = app.get_middleware<crow::CORSHandler>();
+
+  // clang-format off
+    cors
+      .global()
+        .headers("X-Custom-Header", "Upgrade-Insecure-Requests")
+        .methods("POST"_method, "GET"_method)
+      .prefix("/cors")
+        .origin("localhost:3000")
+      .prefix("/nocors")
+        .ignore();
+
+
   // SSL Configuration for BankID
   BankID::SSLConfig test_ssl_config(
       BankID::Environment::TEST,
@@ -37,17 +53,16 @@ int main()
     return 1;
   }
 
-  crow::SimpleApp app;
 
-  // GET /init endpoint
-  CROW_ROUTE(app, "/init")
+  // GET /api/auth/init endpoint
+  CROW_ROUTE(app, "/api/auth/init")
   ([&bankid_session]()
    {
         std::cout << "GET /init - Starting authentication" << std::endl;
         
         // Create auth config on-demand for this specific request
-        auto authConfig = BankID::API::AuthConfig("172.0.0.1")
-            .setUserVisibleData("VEhJUyBJUyBBIFRFU1Q=");
+        auto authConfig = BankID::API::AuthConfig("127.0.0.1")
+            .setUserVisibleData("TG9nZ2luIHDDpSBjKysgdGVzdCBwb3J0YWxlbg==");
 
         auto response = bankid_session.auth(authConfig);
 
@@ -60,17 +75,18 @@ int main()
         json json_response;
         json_response["orderRef"] = response->orderRef;
         json_response["autoStartToken"] = response->autoStartToken;
+        json_response["authCountdown"] = 300;
 
 
         crow::response resp(200, json_response.dump());
         resp.add_header("Content-Type", "application/json");
         return resp; });
 
-  // GET /poll endpoint
-  CROW_ROUTE(app, "/poll/<string>")
+  // GET /api/auth/poll endpoint
+  CROW_ROUTE(app, "/api/auth/poll/<string>")
   ([&bankid_session](std::string orderRef)
    {
-     std::cout << "GET /poll - Checking authentication status" << std::endl;
+     std::cout << "GET /api/auth/poll - Checking authentication status" << std::endl;
      std::cout << "Order Reference: " << orderRef << std::endl;
 
      auto generator = BankID::QRGeneratorCache::instance().get(orderRef);
@@ -78,12 +94,15 @@ int main()
      {
       const auto isExpired = generator->isExpired();
       std::cout << "QR Code generator is expired: " << (isExpired ? "Yes" : "No") << std::endl;
-
+      
       std::string qrCode = generator->getNextQRCode();
-       std::cout << "QR Code: " << qrCode << std::endl;
+
        json json_response;
-       json_response["status"] = "success";
+       json_response["status"] = "qrCode";
        json_response["qrCode"] = qrCode;
+       json_response["orderRef"] = orderRef;
+       json_response["token"] = nullptr;
+       json_response["user"] = nullptr;
 
        crow::response resp(200, json_response.dump());
        resp.add_header("Content-Type", "application/json");
@@ -96,7 +115,7 @@ int main()
        return resp;
      } });
 
-  CROW_ROUTE(app, "/cancel/<string>")
+  CROW_ROUTE(app, "/api/auth/cancel/<string>")
   ([&bankid_session](std::string orderRef)
    {
         auto cancelConfig = BankID::API::CancelConfig::create(

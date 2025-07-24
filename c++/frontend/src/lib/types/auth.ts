@@ -14,3 +14,9 @@ export type PoolAuthResponse = {
   token: string | null
   user: UserData | null
 }
+
+export type AuthInitResponse = {
+  orderRef: string
+  authCountdown: number
+  autoStartToken: string
+}

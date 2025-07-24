@@ -139,7 +139,7 @@ namespace BankID
         from_json(j, parsed);
         if constexpr (std::is_base_of_v<BankID::API::DefaultResponse, T>)
         {
-          static_cast<BankID::API::DefaultResponse&>(parsed).status = res->status;
+          static_cast<BankID::API::DefaultResponse &>(parsed).status = res->status;
         }
         return parsed;
       }
@@ -170,23 +170,41 @@ namespace BankID
         // Validate that it's valid JSON
         auto jsonBody = nlohmann::json::parse(res->body);
         // Return the raw JSON body as details for proper JSON response
-        
+
         // Map status codes to appropriate BankIdErrorCode
         BankIdErrorCode errorCode;
         switch (res->status)
         {
-          case 400: errorCode = BankIdErrorCode::INVALID_PARAMETERS; break;
-          case 401:
-          case 403: errorCode = BankIdErrorCode::UNAUTHORIZED; break;
-          case 404: errorCode = BankIdErrorCode::NOT_FOUND; break;
-          case 405: errorCode = BankIdErrorCode::METHOD_NOT_ALLOWED; break;
-          case 408: errorCode = BankIdErrorCode::REQUEST_TIMEOUT; break;
-          case 415: errorCode = BankIdErrorCode::UNSUPPORTED_MEDIA_TYPE; break;
-          case 500: errorCode = BankIdErrorCode::INTERNAL_ERROR; break;
-          case 503: errorCode = BankIdErrorCode::MAINTENANCE; break;
-          default: errorCode = BankIdErrorCode::INTERNAL_ERROR; break;
+        case 400:
+          errorCode = BankIdErrorCode::INVALID_PARAMETERS;
+          break;
+        case 401:
+        case 403:
+          errorCode = BankIdErrorCode::UNAUTHORIZED;
+          break;
+        case 404:
+          errorCode = BankIdErrorCode::NOT_FOUND;
+          break;
+        case 405:
+          errorCode = BankIdErrorCode::METHOD_NOT_ALLOWED;
+          break;
+        case 408:
+          errorCode = BankIdErrorCode::REQUEST_TIMEOUT;
+          break;
+        case 415:
+          errorCode = BankIdErrorCode::UNSUPPORTED_MEDIA_TYPE;
+          break;
+        case 500:
+          errorCode = BankIdErrorCode::INTERNAL_ERROR;
+          break;
+        case 503:
+          errorCode = BankIdErrorCode::MAINTENANCE;
+          break;
+        default:
+          errorCode = BankIdErrorCode::INTERNAL_ERROR;
+          break;
         }
-        
+
         return std::unexpected(AuthError{
             res->status,
             errorCode,
@@ -198,18 +216,36 @@ namespace BankID
         BankIdErrorCode errorCode;
         switch (res->status)
         {
-          case 400: errorCode = BankIdErrorCode::INVALID_PARAMETERS; break;
-          case 401:
-          case 403: errorCode = BankIdErrorCode::UNAUTHORIZED; break;
-          case 404: errorCode = BankIdErrorCode::NOT_FOUND; break;
-          case 405: errorCode = BankIdErrorCode::METHOD_NOT_ALLOWED; break;
-          case 408: errorCode = BankIdErrorCode::REQUEST_TIMEOUT; break;
-          case 415: errorCode = BankIdErrorCode::UNSUPPORTED_MEDIA_TYPE; break;
-          case 500: errorCode = BankIdErrorCode::INTERNAL_ERROR; break;
-          case 503: errorCode = BankIdErrorCode::MAINTENANCE; break;
-          default: errorCode = BankIdErrorCode::INTERNAL_ERROR; break;
+        case 400:
+          errorCode = BankIdErrorCode::INVALID_PARAMETERS;
+          break;
+        case 401:
+        case 403:
+          errorCode = BankIdErrorCode::UNAUTHORIZED;
+          break;
+        case 404:
+          errorCode = BankIdErrorCode::NOT_FOUND;
+          break;
+        case 405:
+          errorCode = BankIdErrorCode::METHOD_NOT_ALLOWED;
+          break;
+        case 408:
+          errorCode = BankIdErrorCode::REQUEST_TIMEOUT;
+          break;
+        case 415:
+          errorCode = BankIdErrorCode::UNSUPPORTED_MEDIA_TYPE;
+          break;
+        case 500:
+          errorCode = BankIdErrorCode::INTERNAL_ERROR;
+          break;
+        case 503:
+          errorCode = BankIdErrorCode::MAINTENANCE;
+          break;
+        default:
+          errorCode = BankIdErrorCode::INTERNAL_ERROR;
+          break;
         }
-        
+
         return std::unexpected(AuthError{
             res->status,
             errorCode,
@@ -264,18 +300,33 @@ namespace BankID
 
   std::string QRGenerator::computeAuthCode(int seconds) const
   {
-    unsigned char *digest;
-    digest = HMAC(EVP_sha256(),
-                  m_qr_start_secret.data(), 64,
-                  reinterpret_cast<const unsigned char *>(std::to_string(seconds).c_str()),
-                  std::to_string(seconds).size(),
-                  nullptr, nullptr);
+    std::cout << "QRGenerator: Computing HMAC digest for seconds: " << seconds << std::endl;
+
+    std::string timeStr = std::to_string(seconds);
+    size_t keyLength = m_qr_start_secret.size();
+    if (keyLength > static_cast<size_t>(INT_MAX))
+    {
+      throw std::runtime_error("Secret key length exceeds INT_MAX");
+    }
+
+    unsigned char *digest = HMAC(EVP_sha256(),
+                                 reinterpret_cast<const unsigned char *>(m_qr_start_secret.data()),
+                                 static_cast<int>(keyLength),
+                                 reinterpret_cast<const unsigned char *>(timeStr.c_str()),
+                                 static_cast<int>(timeStr.size()),
+                                 nullptr, nullptr);
+
+    if (!digest)
+    {
+      throw std::runtime_error("HMAC computation failed");
+    }
 
     std::ostringstream oss;
     for (int i = 0; i < 32; ++i)
     {
-      oss << std::hex << std::setw(2) << std::setfill('0') << (int)digest[i];
+      oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(digest[i]);
     }
+
     return oss.str();
   }
 

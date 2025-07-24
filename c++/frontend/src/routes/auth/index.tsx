@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStateMachine } from '@/hooks/useAuthStateMachine'
 import { useCountdown } from '@/hooks/useTimeout'
+import type { AuthInitResponse } from '@/lib/types/auth'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { Shield } from 'lucide-react'
@@ -16,6 +17,8 @@ export const Route = createFileRoute('/auth/')({
 export default function Auth() {
   const [showBankIDModal, setShowBankIDModal] = useState(false)
   const { state, actions } = useAuthStateMachine()
+  const baseApiUrl = 'http://localhost:8080'
+  console.log(baseApiUrl)
 
   // Track the countdown timer
   const countdown = useCountdown(state.authCountdown, () => {
@@ -26,7 +29,7 @@ export default function Auth() {
   const { data: pollAuthData } = useQuery({
     queryKey: ['pollAuth', state.orderRef],
     queryFn: async () => {
-      const res = await fetch(`/api/auth/poll?orderRef=${state.orderRef}`)
+      const res = await fetch(`${baseApiUrl}/api/auth/poll/${state.orderRef}`)
       if (!res.ok) throw new Error('Failed to poll auth status')
       return await res.json()
     },
@@ -38,13 +41,26 @@ export default function Auth() {
   // Initialize auth
   const authMutation = useMutation({
     mutationFn: async () => {
-      await fetch(`/api/auth/poll`) // This is just to trigger the initial state
-      const res = await fetch('/api/auth/init')
+      const res = await fetch(`${baseApiUrl}/api/auth/init`)
       if (!res.ok) throw new Error('Failed to init auth')
-      return await res.json()
+      return (await res.json()) as AuthInitResponse
     },
     onSuccess: (data) => {
       actions.initAuth(data.orderRef, data.authCountdown)
+    },
+  })
+
+  // Cancel bankID request
+  const cancelBankIDRequest = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${baseApiUrl}/api/auth/cancel/${state.orderRef}`, {
+        method: 'GET',
+      })
+      if (!res.ok) throw new Error('Failed to cancel auth')
+      return await res.json()
+    },
+    onSuccess: () => {
+      cancelPolling()
     },
   })
 
@@ -77,7 +93,7 @@ export default function Auth() {
       <div className='container flex-1 mx-auto px-4 py-12 flex items-center justify-center pb-32'>
         <div className='mx-auto max-w-6xl space-y-6'>
           <div className={`h-28 w-full relative`}>
-            <img src={BankIdLogo} alt='BankID Logo' className='object-contain' />
+            <img src={BankIdLogo} width={120} alt='BankID Logo' className='mx-auto object-contain' />
           </div>
           <div className='grid gap-12 lg:grid-cols-1 lg:gap-16'>
             <div className='space-y-4'>
@@ -85,7 +101,7 @@ export default function Auth() {
                 <span className='block text-primary'>BankID</span>
                 Login
               </h2>
-              <p className='text-lg text-center text-gray-600'>Simple login demo using BankID and Next.js</p>
+              <p className='text-lg text-center text-gray-600'>Simple BankID login demo using React with TanStack Router and c++ (Crowcpp) backend</p>
             </div>
 
             <div className='flex items-center justify-center'>
