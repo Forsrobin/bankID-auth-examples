@@ -91,7 +91,7 @@ int main()
      }
      else
      {
-       crow::response resp(404, );
+       crow::response resp(404, "QR Code not found");
        resp.add_header("Content-Type", "application/json");
        return resp;
      } });
