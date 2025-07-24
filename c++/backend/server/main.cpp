@@ -51,16 +51,13 @@ int main()
 
         auto response = bankid_session.auth(authConfig);
 
-
         if (!response)
         {
           const auto &error = response.error();
           return crow::response(error.status, error.details);
         }
-
         // Simple JSON response using nlohmann::json
         json json_response;
-        json_response["status"] = "success";
         json_response["orderRef"] = response->orderRef;
         json_response["autoStartToken"] = response->autoStartToken;
 
@@ -94,7 +91,7 @@ int main()
      }
      else
      {
-       crow::response resp(404, "QR Code not found");
+       crow::response resp(404, );
        resp.add_header("Content-Type", "application/json");
        return resp;
      } });
@@ -114,9 +111,10 @@ int main()
           return crow::response(error.status, error.details);
         }
 
-        // Simple JSON response using nlohmann::json
+
+        // Convert the response to JSON
         json json_response;
-        json_response["status"] = "success";
+        json_response["message"] = "Order cancelled successfully";
 
         crow::response resp(200, json_response.dump());
         resp.add_header("Content-Type", "application/json");

@@ -35,10 +35,10 @@ namespace BankID::API
   inline void from_json(const nlohmann::json &j, OrderResponse &r)
   {
     from_json(j, static_cast<DefaultResponse &>(r));
-    j.at("orderRef").get_to(r.orderRef);
-    j.at("autoStartToken").get_to(r.autoStartToken);
-    j.at("qrStartToken").get_to(r.qrStartToken);
-    j.at("qrStartSecret").get_to(r.qrStartSecret);
+    r.orderRef = j.at("orderRef").get<std::string>();
+    r.autoStartToken = j.at("autoStartToken").get<std::string>();
+    r.qrStartToken = j.at("qrStartToken").get<std::string>();
+    r.qrStartSecret = j.at("qrStartSecret").get<std::string>();
   }
 
   /**
@@ -53,7 +53,7 @@ namespace BankID::API
   inline void from_json(const nlohmann::json &j, LimitedResponse &r)
   {
     from_json(j, static_cast<DefaultResponse &>(r));
-    j.at("orderRef").get_to(r.orderRef);
+    r.orderRef = j.at("orderRef").get<std::string>();
   }
 
   /**
@@ -83,8 +83,8 @@ namespace BankID::API
   inline void from_json(const nlohmann::json &j, ErrorResponse &r)
   {
     from_json(j, static_cast<DefaultResponse &>(r));
-    j.at("errorCode").get_to(r.errorCode);
-    j.at("details").get_to(r.details);
+    r.errorCode = j.at("errorCode").get<std::string>();
+    r.details = j.at("details").get<std::string>();
   }
 
   /**
@@ -165,8 +165,8 @@ namespace BankID::API
   inline void from_json(const nlohmann::json &j, CollectResponse &r)
   {
     from_json(j, static_cast<DefaultResponse &>(r));
-    j.at("orderRef").get_to(r.orderRef);
-    j.at("status").get_to(r.status);
+    r.orderRef = j.at("orderRef").get<std::string>();
+    r.status = j.at("status").get<std::string>();
     if (j.contains("completionData")) r.completionData = j.at("completionData").get<CollectResponseCompletionData>();
     if (j.contains("hintCode")) r.hintCode = j.at("hintCode").get<std::string>();
   }
