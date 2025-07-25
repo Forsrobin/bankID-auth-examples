@@ -1,0 +1,4 @@
+[submodule "c++/bankid-cpp"]
+	path = c++/bankid-cpp
+	url = https://github.com/Forsrobin/bankid-cpp
+	branch = main
