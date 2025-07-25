@@ -10,24 +10,25 @@ namespace BankID
 {
   // New Session implementation using SSLConfig only
   Session::Session(const SSLConfig &sslConfig)
-      : m_sslConfig(sslConfig), m_initialized(false)
+      : m_sslConfig(sslConfig), m_initialized(false), m_cli(nullptr)
   {
-    std::cout << "BankID Session: Creating session with SSL config" << std::endl;
     m_initialized = initialize();
   }
 
   Session::~Session()
   {
-    delete m_cli;
-    std::cout << "BankID Session: Destroying session" << std::endl;
+    if (m_cli)
+    {
+      delete m_cli;
+    }
   }
 
   const bool Session::initialize()
   {
-    std::cout << "BankID Session: Initializing session" << std::endl;
     if (!m_sslConfig.validate())
     {
       std::cerr << "BankID Session: SSL configuration validation failed" << std::endl;
+      m_cli = nullptr;
       return false;
     }
 
@@ -43,7 +44,6 @@ namespace BankID
     this->m_cli->set_connection_timeout(30);
     this->m_cli->set_read_timeout(30);
 
-    std::cout << "BankID Session: Session initialized successfully" << std::endl;
     return true;
   }
 
@@ -51,10 +51,12 @@ namespace BankID
   const std::expected<BankID::API::AuthConfig::ResponseType, BankID::AuthError> Session::auth(const BankID::API::AuthConfig &authConfig)
   {
     auto response = makeApiCall("/auth", authConfig);
+
     if (response.has_value())
     {
       BankID::QRGeneratorCache::instance().add(response->orderRef, response->qrStartToken, response->qrStartSecret);
     }
+
     return response;
   }
 

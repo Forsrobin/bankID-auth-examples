@@ -27,7 +27,6 @@ protected:
 
 TEST_F(AuthTest, CreateAuthConfigWithPersonalNumber)
 {
-  // Test creating auth config with personal number
   BankID::API::AuthConfig config("192.168.1.1");
 
   BankID::Requirement requirement;
@@ -41,7 +40,6 @@ TEST_F(AuthTest, CreateAuthConfigWithPersonalNumber)
 
 TEST_F(AuthTest, CreateAuthConfigWithoutPersonalNumber)
 {
-  // Test creating auth config without personal number (QR code flow)
   BankID::API::AuthConfig config("192.168.1.1");
 
   EXPECT_EQ(config.getEndUserIp(), "192.168.1.1");
@@ -50,7 +48,6 @@ TEST_F(AuthTest, CreateAuthConfigWithoutPersonalNumber)
 
 TEST_F(AuthTest, CreateAuthConfigWithRequirement)
 {
-  // Test creating auth config with specific requirements
   BankID::API::AuthConfig config("192.168.1.1");
 
   BankID::Requirement requirement;
@@ -66,7 +63,6 @@ TEST_F(AuthTest, CreateAuthConfigWithRequirement)
 
 TEST_F(AuthTest, CreateAuthConfigWithUserVisibleData)
 {
-  // Test creating auth config with user visible data
   BankID::API::AuthConfig config("192.168.1.1");
   config.setUserVisibleData("VGVzdCBkYXRh") // Base64 encoded "Test data"
       .setUserVisibleDataFormat("simpleMarkdownV1");
@@ -80,8 +76,6 @@ TEST_F(AuthTest, CreateAuthConfigWithUserVisibleData)
 
 TEST_F(AuthTest, ValidateEndUserIpRequired)
 {
-  // Test that endUserIp is required - constructor requires it
-  // This test demonstrates that endUserIp is required in constructor
   BankID::API::AuthConfig config1("192.168.1.1");
   EXPECT_EQ(config1.getEndUserIp(), "192.168.1.1");
 
@@ -91,23 +85,21 @@ TEST_F(AuthTest, ValidateEndUserIpRequired)
 
 TEST_F(AuthTest, AuthWithInvalidSSLConfig)
 {
-  // Test auth with invalid SSL configuration
   BankID::SSLConfig invalidConfig(BankID::Environment::TEST, "invalid_cert.pem", "invalid_key.pem");
+
+  EXPECT_FALSE(invalidConfig.validate());
+
   BankID::Session invalidSession(invalidConfig);
+  EXPECT_FALSE(invalidSession.isInitialized());
 
   BankID::API::AuthConfig config("192.168.1.1");
 
-  // This should fail due to invalid SSL config
   auto result = invalidSession.auth(config);
-  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.has_value(), 0);
 }
 
-// Note: These tests below would require a test BankID environment
-// and proper certificates to run successfully
-
-TEST_F(AuthTest, DISABLED_AuthWithValidConfig)
+TEST_F(AuthTest, AuthWithValidConfig)
 {
-  // Test successful auth call (disabled by default - requires test environment)
   BankID::API::AuthConfig config("192.168.1.1");
 
   BankID::Requirement requirement;
@@ -123,11 +115,9 @@ TEST_F(AuthTest, DISABLED_AuthWithValidConfig)
   }
 }
 
-TEST_F(AuthTest, DISABLED_AuthQRCodeFlow)
+TEST_F(AuthTest, AuthQRCodeFlow)
 {
-  // Test QR code authentication flow (disabled by default)
   BankID::API::AuthConfig config("192.168.1.1");
-  // No personal number for QR code flow
 
   auto result = session->auth(config);
 
@@ -138,9 +128,8 @@ TEST_F(AuthTest, DISABLED_AuthQRCodeFlow)
   }
 }
 
-TEST_F(AuthTest, DISABLED_AuthWithUserVisibleData)
+TEST_F(AuthTest, AuthWithUserVisibleData)
 {
-  // Test auth with user visible data (disabled by default)
   BankID::API::AuthConfig config("192.168.1.1");
   config.setUserVisibleData("VGVzdCBkYXRh") // Base64 encoded "Test data"
       .setUserVisibleDataFormat("simpleMarkdownV1");

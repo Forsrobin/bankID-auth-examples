@@ -113,7 +113,6 @@ namespace BankID
               const std::string &_pemKeyPath = "certs/bankid_key.pem")
         : environment(env), pemCertPath(_pemCertPath), pemKeyPath(_pemKeyPath)
     {
-      std::cout << "BankID SSLConfig: Creating SSL configuration" << std::endl;
       if (environment == Environment::TEST)
       {
         caFilePath = "certs/test.ca";
