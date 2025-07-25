@@ -30,10 +30,8 @@ using json = nlohmann::json;
 #define BANKID_API
 #endif
 
-bool file_exists(const std::string &path)
-{
-  return std::filesystem::exists(path);
-}
+// Forward declaration - implementation in bankid.cpp
+bool file_exists(const std::string &path);
 
 namespace BankID
 {

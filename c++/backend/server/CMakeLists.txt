@@ -69,11 +69,3 @@ add_custom_command(TARGET bankid_server POST_BUILD
     $<TARGET_FILE_DIR:bankid_server>/certs
     COMMENT "Copying certificates folder to server output directory"
 )
-
-# # Also copy scripts folder for certificate conversion utilities
-# add_custom_command(TARGET bankid_server POST_BUILD
-#     COMMAND ${CMAKE_COMMAND} -E copy_directory
-#     ${CMAKE_CURRENT_SOURCE_DIR}/scripts
-#     $<TARGET_FILE_DIR:bankid_server>/scripts
-#     COMMENT "Copying certificate conversion scripts to server output directory"
-# )
