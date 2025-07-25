@@ -2,40 +2,6 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Configure Static Library (Debug)",
-      "type": "shell",
-      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
-      "args": ["--preset", "vs2022-deb"],
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build Static Library (Debug)",
-      "type": "shell",
-      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
-      "args": ["--build", "build/vs2022-deb", "--config", "Debug"],
-      "group": "build",
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "Configure Static Library (Debug)"
-    },
-    {
-      "label": "Configure Shared Library (Debug)",
-      "type": "shell",
-      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
-      "args": ["--preset", "vs2022-deb-shared"],
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Build Shared Library (Debug)",
-      "type": "shell",
-      "command": "\"C:\\Program Files\\CMake\\bin\\cmake.exe\"",
-      "args": ["--build", "build/vs2022-deb-shared", "--config", "Debug"],
-      "group": "build",
-      "problemMatcher": ["$msCompile"],
-      "dependsOn": "Configure Shared Library (Debug)"
-    },
-    {
       "label": "Run Server (Static)",
       "type": "shell",
       "command": "./bankid_server.exe",
@@ -54,6 +20,28 @@
         "cwd": "${workspaceFolder}/build/vs2022-deb-shared/server/Debug"
       },
       "isBackground": true
-    }
+    },
+    {
+      "label": "Run Tests (Static)",
+      "type": "shell",
+      "command": "./bankid_tests.exe",
+      "options": {
+        "cwd": "${workspaceFolder}/build/vs2022-deb/tests/Debug"
+      },
+      "group": "test",
+      "dependsOn": "Build Tests",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Tests (Shared)",
+      "type": "shell",
+      "command": "./bankid_tests.exe",
+      "options": {
+        "cwd": "${workspaceFolder}/build/vs2022-deb-shared/tests/Debug"
+      },
+      "group": "test",
+      "dependsOn": "Build Tests (Shared)",
+      "problemMatcher": []
+    },
   ]
 }

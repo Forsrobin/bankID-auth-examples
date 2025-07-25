@@ -30,10 +30,8 @@ using json = nlohmann::json;
 #define BANKID_API
 #endif
 
-bool file_exists(const std::string &path)
-{
-  return std::filesystem::exists(path);
-}
+// Forward declaration - implementation in bankid.cpp
+bool file_exists(const std::string &path);
 
 namespace BankID
 {
@@ -115,7 +113,6 @@ namespace BankID
               const std::string &_pemKeyPath = "certs/bankid_key.pem")
         : environment(env), pemCertPath(_pemCertPath), pemKeyPath(_pemKeyPath)
     {
-      std::cout << "BankID SSLConfig: Creating SSL configuration" << std::endl;
       if (environment == Environment::TEST)
       {
         caFilePath = "certs/test.ca";

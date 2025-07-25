@@ -20,6 +20,12 @@ endif()
 
 option(BUILD_SHARED_LIBS "Build shared library" Off)
 
+option(BUILD_TESTS "Build tests" On)
+
 add_subdirectory(bankid)
 add_subdirectory(server)
+
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
 
